@@ -7,13 +7,14 @@ import os
 
 def scrape():
     if len(configjson["specialrequests"]) == 0:
-        print("~Currently no special requests~")
+        print("Currently no special requests")
+        print('\n')
     else:
         print("~Doing special requests~")
         configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2])=="keep"]
         print('\n')
     if len(configjson["keywords"]) == 0:
-        print("~Currently not scraping any boards~")
+        print("Currently not scraping any boards")
     else:
         for boardcode in configjson["keywords"]:
             configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],boardcode in configjson["noarchiveboards"],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
@@ -54,10 +55,14 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
 
     #Previously scraped and now archived threads
     if noarchive == False:
-        print("~Scraping known archived threads of /"+boardcode+"/~")
-        for possiblyarchivedop in [lastscrapeop for lastscrapeop in lastscrapeops if not lastscrapeop[0] in [scrapedactiveop[0] for scrapedactiveop in scrapedactiveops] and not lastscrapeop[0] in blacklist and lastscrapeop[1] in keywords]:
-            if scrapethread(boardcode,possiblyarchivedop[0],possiblyarchivedop[1]) == "keep":
-                scrapedactiveops.append(possiblyarchivedop)
+        possiblyarchivedlist = [lastscrapeop for lastscrapeop in lastscrapeops if not lastscrapeop[0] in [scrapedactiveop[0] for scrapedactiveop in scrapedactiveops] and not lastscrapeop[0] in blacklist and lastscrapeop[1] in keywords]
+        if len(possiblyarchivedlist) == 0:
+            print("No known threads of interest in archive for /"+boardcode+"/")
+        else:
+            print("~Scraping known archived threads of /"+boardcode+"/~")
+            for possiblyarchivedop in possiblyarchivedlist:
+                if scrapethread(boardcode,possiblyarchivedop[0],possiblyarchivedop[1]) == "keep":
+                    scrapedactiveops.append(possiblyarchivedop)
 
     return scrapedactiveops
 
@@ -101,6 +106,11 @@ def scrapethread(boardcode,threadopno,keyword):
                     else:
                         noerrs = 0
                         print("Error: File /"+boardcode+"/:"+str(post["no"])+" already exists; please move it")
+        if len([f for f in os.listdir(threadaddress) if f != "desktop.ini"]) == 0:
+            try:
+                os.rmdir(threadaddress)
+            except:
+                print("Error: Could not delete folder '"+threadaddress+"'")
         if noerrs == 1 and "archived" in threadjson["posts"][0]:
             return "delete"
         else:
@@ -167,7 +177,7 @@ def saveconfig():
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version 1.0.2~~~~~')
+print('~~~~~Version 1.0.3~~~~~')
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.txt'):
@@ -189,7 +199,7 @@ while True:
         break
 
     elif action in ["HELP","H"]:
-        print("This is Bateman's 4chan image scraper. It scrapes images from threads whose OPs contain a keyword of interest that is being searched for")
+        print("This is Bateman's 4chan image scraper. It saves images from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made")
         print("The file 'scraperconfig.txt' stores the program's config in the program's directory")
         print("Images are saved in nested directories in the same directory as the program")
         print()

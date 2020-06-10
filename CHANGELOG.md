@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.3
+- Minor changes to help text and 'not scraping' text
+- Empty folders left after scraping are now deleted
+- 'Scraping archive' text now dependent on whether known threads are in the archive
+
 ## v1.0.2
 - Added text response for "DELETE" when no keywords are supplied
 - Check for 404 if error occurs when grabbing image: display specific message for 404 case as well as not counting this as a 'bad' error
