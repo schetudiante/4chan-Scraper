@@ -18,10 +18,10 @@ def scrape():
         for boardcode in configjson["keywords"]:
             configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],boardcode in configjson["noarchiveboards"],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
             print('\n')
-        print("~Updating log~")
-        saveconfig()
-        print("~Log updated~")
-        print("~Done scraping~")
+    print("~Updating log~")
+    saveconfig()
+    print("~Log updated~")
+    print("~Done scraping~")
 
 ################################################################################
 
@@ -87,9 +87,17 @@ def scrapethread(boardcode,threadopno,keyword):
                         try:
                             urllib.request.urlretrieve(imgurl,imgaddress)
                             configjson["scrapednos"][boardcode].append(post["no"])
-                        except:
-                            noerrs = 0
-                            print("Error: could not load image /"+boardcode+"/:"+str(post["no"]))
+                        except Exception as e:
+                            try:
+                                if e.code == 404:
+                                    configjson["scrapednos"][boardcode].append(post["no"])
+                                    print("Image /"+boardcode+"/:"+str(post["no"])+" has expired")
+                                else:
+                                    noerrs = 0
+                                    print("Error: could not load image /"+boardcode+"/:"+str(post["no"]))
+                            except:
+                                noerrs = 0
+                                print("Error: could not load image /"+boardcode+"/:"+str(post["no"]))
                     else:
                         noerrs = 0
                         print("Error: File /"+boardcode+"/:"+str(post["no"])+" already exists; please move it")
@@ -159,7 +167,7 @@ def saveconfig():
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version 1.0.1~~~~~')
+print('~~~~~Version 1.0.2~~~~~')
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.txt'):
@@ -312,6 +320,9 @@ while True:
             continue
         keywordstodel=input("Which keywords to stop scraping for? ").lower().split()
         keywordstodel = [keyword.replace("_"," ").strip() for keyword in keywordstodel if keyword.replace("_"," ").strip() != ""]
+        if len(keywordstodel) == 0:
+            print("No keywords removed for /"+boardtomodify+"/")
+            continue
         for keyword in keywordstodel:
             if keyword in configjson["keywords"][boardtomodify]:
                 configjson["keywords"][boardtomodify].remove(keyword)
