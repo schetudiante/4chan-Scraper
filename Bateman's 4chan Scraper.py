@@ -56,10 +56,10 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
     #Previously scraped and now archived threads
     if noarchive == False:
         possiblyarchivedlist = [lastscrapeop for lastscrapeop in lastscrapeops if not lastscrapeop[0] in [scrapedactiveop[0] for scrapedactiveop in scrapedactiveops] and not lastscrapeop[0] in blacklist and lastscrapeop[1] in keywords]
-        if len(possiblyarchivedlist) == 0:
-            print("No known threads of interest in archive for /"+boardcode+"/")
-        else:
-            print("~Scraping known archived threads of /"+boardcode+"/~")
+        if len(possiblyarchivedlist) != 0:
+##            print("No known threads of interest in archive for /"+boardcode+"/")
+##        else:
+##            print("~Scraping known archived threads of /"+boardcode+"/~")
             for possiblyarchivedop in possiblyarchivedlist:
                 if scrapethread(boardcode,possiblyarchivedop[0],possiblyarchivedop[1]) == "keep":
                     scrapedactiveops.append(possiblyarchivedop)
@@ -106,16 +106,13 @@ def scrapethread(boardcode,threadopno,keyword):
                     else:
                         noerrs = 0
                         print("Error: File /"+boardcode+"/:"+str(post["no"])+" already exists; please move it")
-        if len([f for f in os.listdir(threadaddress) if f != "desktop.ini"]) == 0:
-            try:
-                os.rmdir(threadaddress)
-            except:
-                print("Error: Could not delete folder '"+threadaddress+"'")
+        delfolderifempty(threadaddress)
         if noerrs == 1 and "archived" in threadjson["posts"][0]:
             return "delete"
         else:
             return "keep"
     except Exception as e:
+        delfolderifempty(threadaddress)
         try:
             if e.code == 404:
                 print("Thread /"+boardcode+"/:"+str(threadopno)+" has expired")
@@ -126,6 +123,15 @@ def scrapethread(boardcode,threadopno,keyword):
         except:
             print("Error: Cannot load thread /"+boardcode+"/:"+str(threadopno)+":"+keyword)
             return "keep"
+
+################################################################################
+
+def delfolderifempty(address):
+    if len([f for f in os.listdir(address) if f != "desktop.ini"]) == 0:
+        try:
+            os.rmdir(address)
+        except:
+            print("Error: Could not delete folder '"+address+"'")
 
 ################################################################################
 
@@ -177,7 +183,7 @@ def saveconfig():
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version 1.0.3~~~~~')
+print('~~~~~Version 1.0.4~~~~~')
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.txt'):
