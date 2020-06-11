@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.4
+- Removed confusing and unnecessary text between active and archived threads during scraping
+- Fixed empty folder not being deleted if corresponding thread cannot be loaded
+
 ## v1.0.3
 - Minor changes to help text and 'not scraping' text
 - Empty folders left after scraping are now deleted
