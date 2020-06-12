@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.0.5
+- Removed duplicate pieces of code
+
 ## v1.0.4
 - Removed confusing and unnecessary text between active and archived threads during scraping
 - Fixed empty folder not being deleted if corresponding thread cannot be loaded
