@@ -57,9 +57,6 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
     if noarchive == False:
         possiblyarchivedlist = [lastscrapeop for lastscrapeop in lastscrapeops if not lastscrapeop[0] in [scrapedactiveop[0] for scrapedactiveop in scrapedactiveops] and not lastscrapeop[0] in blacklist and lastscrapeop[1] in keywords]
         if len(possiblyarchivedlist) != 0:
-##            print("No known threads of interest in archive for /"+boardcode+"/")
-##        else:
-##            print("~Scraping known archived threads of /"+boardcode+"/~")
             for possiblyarchivedop in possiblyarchivedlist:
                 if scrapethread(boardcode,possiblyarchivedop[0],possiblyarchivedop[1]) == "keep":
                     scrapedactiveops.append(possiblyarchivedop)
@@ -98,8 +95,7 @@ def scrapethread(boardcode,threadopno,keyword):
                                     configjson["scrapednos"][boardcode].append(post["no"])
                                     print("Image /"+boardcode+"/:"+str(post["no"])+" has expired")
                                 else:
-                                    noerrs = 0
-                                    print("Error: could not load image /"+boardcode+"/:"+str(post["no"]))
+                                    raise Exception
                             except:
                                 noerrs = 0
                                 print("Error: could not load image /"+boardcode+"/:"+str(post["no"]))
@@ -118,8 +114,7 @@ def scrapethread(boardcode,threadopno,keyword):
                 print("Thread /"+boardcode+"/:"+str(threadopno)+" has expired")
                 return "delete"
             else:
-                print("Error: Cannot load thread /"+boardcode+"/:"+str(threadopno)+":"+keyword)
-                return "keep"
+                raise Exception
         except:
             print("Error: Cannot load thread /"+boardcode+"/:"+str(threadopno)+":"+keyword)
             return "keep"
@@ -183,7 +178,7 @@ def saveconfig():
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version 1.0.4~~~~~')
+print('~~~~~Version 1.0.5~~~~~')
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.txt'):
