@@ -80,7 +80,7 @@ def scrapethread(boardcode,threadopno,keyword):
         threadjson = json.load(threadjson_file)
         print("Scraping from /"+boardcode+"/:"+str(threadopno)+":"+keyword)
         for post in threadjson["posts"]:
-            #If image present in JSON try to save from website if not 404ed
+            #If attachment present in JSON try to save from website if not 404ed
             if "tim" in post:
                 if not post["no"] in configjson["scrapednos"][boardcode]:
                     imgurl=("https://i.4cdn.org/"+boardcode+"/"+str(post["tim"])+post["ext"])
