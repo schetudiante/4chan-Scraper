@@ -178,7 +178,7 @@ def saveconfig():
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version 1.0.6~~~~~')
+print('~~~~~Version 1.0.7~~~~~')
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.txt'):
