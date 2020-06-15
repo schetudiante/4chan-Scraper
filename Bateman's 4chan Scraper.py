@@ -93,12 +93,12 @@ def scrapethread(boardcode,threadopno,keyword):
                             try:
                                 if e.code == 404:
                                     configjson["scrapednos"][boardcode].append(post["no"])
-                                    print("Image /"+boardcode+"/:"+str(post["no"])+":"+keyword+" has expired")
+                                    print("File /"+boardcode+"/:"+str(post["no"])+":"+keyword+" has expired")
                                 else:
                                     raise Exception
                             except:
                                 noerrs = 0
-                                print("Error: could not load image /"+boardcode+"/:"+str(post["no"])+":"+keyword)
+                                print("Error: could not load file /"+boardcode+"/:"+str(post["no"])+":"+keyword)
                     else:
                         noerrs = 0
                         print("Error: File /"+boardcode+"/:"+str(post["no"])+":"+keyword+" already exists; please move it")
