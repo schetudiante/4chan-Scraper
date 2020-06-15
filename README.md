@@ -1,6 +1,6 @@
 # Bateman's 4chan Scraper
 
-This is Bateman's 4chan image scraper. It is a command line based program that saves images from threads on [4chan.org](https://www.4chan.org) whose OPs contain a keyword the user is interested in. Special thread requests can also be made.
+This is Bateman's 4chan scraper. It is a command line based program that saves attachments from threads on [4chan.org](https://www.4chan.org) whose OPs contain a keyword the user is interested in. Special thread requests can also be made.
 
 ### Files
 
@@ -8,6 +8,7 @@ The main program to run is `Bateman's 4chan Scraper.py`, written in Python 3.6. 
 
 ### Features
 
+- Scrape threads with minimal effort
 - Add and remove boards with their own set of keywords to scrape for
 - Make special requests to scrape custom threads 
 - Blacklist threads to not scrape

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.6
+- Changed error message and "HELP" text from 'image' to 'file'
+- Keyword for thread / file error is now shown along with board and no.
+
 ## v1.0.5
 - Removed duplicate pieces of code
 

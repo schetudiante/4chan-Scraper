@@ -93,15 +93,15 @@ def scrapethread(boardcode,threadopno,keyword):
                             try:
                                 if e.code == 404:
                                     configjson["scrapednos"][boardcode].append(post["no"])
-                                    print("Image /"+boardcode+"/:"+str(post["no"])+" has expired")
+                                    print("File /"+boardcode+"/:"+str(post["no"])+":"+keyword+" has expired")
                                 else:
                                     raise Exception
                             except:
                                 noerrs = 0
-                                print("Error: could not load image /"+boardcode+"/:"+str(post["no"]))
+                                print("Error: could not load file /"+boardcode+"/:"+str(post["no"])+":"+keyword)
                     else:
                         noerrs = 0
-                        print("Error: File /"+boardcode+"/:"+str(post["no"])+" already exists; please move it")
+                        print("Error: File /"+boardcode+"/:"+str(post["no"])+":"+keyword+" already exists; please move it")
         delfolderifempty(threadaddress)
         if noerrs == 1 and "archived" in threadjson["posts"][0]:
             return "delete"
@@ -111,7 +111,7 @@ def scrapethread(boardcode,threadopno,keyword):
         delfolderifempty(threadaddress)
         try:
             if e.code == 404:
-                print("Thread /"+boardcode+"/:"+str(threadopno)+" has expired")
+                print("Thread /"+boardcode+"/:"+str(threadopno)+":"+keyword+" has expired")
                 return "delete"
             else:
                 raise Exception
@@ -178,7 +178,7 @@ def saveconfig():
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version 1.0.5~~~~~')
+print('~~~~~Version 1.0.6~~~~~')
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.txt'):
@@ -200,11 +200,11 @@ while True:
         break
 
     elif action in ["HELP","H"]:
-        print("This is Bateman's 4chan image scraper. It saves images from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made")
+        print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made")
         print("The file 'scraperconfig.txt' stores the program's config in the program's directory")
-        print("Images are saved in nested directories in the same directory as the program")
+        print("Scraped files are saved in nested directories in the same directory as the program")
         print()
-        print("SCRAPE     /  S: Saves images from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
+        print("SCRAPE     /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
         print("SCRAPEQUIT / SQ: Scrapes then closes the program")
         print("REQUEST    /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
         print("BLACKLIST  /  B: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
