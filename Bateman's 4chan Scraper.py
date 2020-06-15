@@ -200,11 +200,11 @@ while True:
         break
 
     elif action in ["HELP","H"]:
-        print("This is Bateman's 4chan image scraper. It saves images from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made")
+        print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made")
         print("The file 'scraperconfig.txt' stores the program's config in the program's directory")
-        print("Images are saved in nested directories in the same directory as the program")
+        print("Scraped files are saved in nested directories in the same directory as the program")
         print()
-        print("SCRAPE     /  S: Saves images from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
+        print("SCRAPE     /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
         print("SCRAPEQUIT / SQ: Scrapes then closes the program")
         print("REQUEST    /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
         print("BLACKLIST  /  B: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
