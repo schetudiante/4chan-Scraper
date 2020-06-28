@@ -6,14 +6,14 @@ import os
 ################################################################################
 
 def scrape():
-    if len(configjson["specialrequests"]) == 0:
+    if not configjson["specialrequests"]:
         print("Currently no special requests")
         print('\n')
     else:
         print("~Doing special requests~")
         configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2])=="keep"]
         print('\n')
-    if len(configjson["keywords"]) == 0:
+    if not configjson["keywords"]:
         print("Currently not scraping any boards")
     else:
         for boardcode in configjson["keywords"]:
@@ -56,7 +56,7 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
     #Previously scraped and now archived threads
     if noarchive == False:
         possiblyarchivedlist = [lastscrapeop for lastscrapeop in lastscrapeops if not lastscrapeop[0] in [scrapedactiveop[0] for scrapedactiveop in scrapedactiveops] and not lastscrapeop[0] in blacklist and lastscrapeop[1] in keywords]
-        if len(possiblyarchivedlist) != 0:
+        if possiblyarchivedlist:
             for possiblyarchivedop in possiblyarchivedlist:
                 if scrapethread(boardcode,possiblyarchivedop[0],possiblyarchivedop[1]) == "keep":
                     scrapedactiveops.append(possiblyarchivedop)
@@ -122,7 +122,7 @@ def scrapethread(boardcode,threadopno,keyword):
 ################################################################################
 
 def delfolderifempty(address):
-    if len([f for f in os.listdir(address) if f != "desktop.ini"]) == 0:
+    if not [f for f in os.listdir(address) if f != "desktop.ini"]:
         try:
             os.rmdir(address)
         except:
@@ -131,7 +131,7 @@ def delfolderifempty(address):
 ################################################################################
 
 def viewscraping():
-    if len(configjson["keywords"])==0:
+    if not configjson["keywords"]:
         print("Currently not scraping any boards")
     else:
         print("Currently scraping:")
@@ -144,7 +144,7 @@ def viewscraping():
 ################################################################################
 
 def viewrequests():
-    if len(configjson["specialrequests"])==0:
+    if configjson["specialrequests"]:
         print("Currently no special requests")
     else:
         print("Current special requests:")
@@ -154,8 +154,8 @@ def viewrequests():
 ################################################################################
 
 def viewblacklisting():
-    nonemptyblbs = [blb for blb in configjson["blacklistedopnos"] if len(configjson["blacklistedopnos"][blb])!=0]
-    if len(nonemptyblbs)==0:
+    nonemptyblbs = [blb for blb in configjson["blacklistedopnos"] if configjson["blacklistedopnos"][blb]]
+    if not nonemptyblbs:
         print("Currently not blacklisting any threads")
     else:
         print("Currently blacklisting:")
@@ -178,7 +178,7 @@ def saveconfig():
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version 1.0.6~~~~~')
+print('~~~~~Version 1.0.7~~~~~')
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.txt'):
@@ -291,7 +291,7 @@ while True:
             boardtomodifyarchive = "OLD"
         keywordstoadd = input("Which keywords to start scraping for? ").lower().split()
         keywordstoadd = [keyword.replace("_"," ").strip() for keyword in keywordstoadd if keyword.replace("_"," ").strip() != ""]
-        if len(keywordstoadd) == 0:
+        if not keywordstoadd:
             if boardtomodify in configjson["keywords"]:
                 print("No more keywords added for /"+boardtomodify+"/")
             else:
@@ -317,7 +317,7 @@ while True:
         saveconfig()
 
     elif action in ["DELETE","DEL","D"]:
-        if len(configjson["keywords"])==0:
+        if not configjson["keywords"]:
             print("Currently not scraping any boards")
             continue
         viewscraping()
@@ -331,13 +331,13 @@ while True:
             continue
         keywordstodel=input("Which keywords to stop scraping for? ").lower().split()
         keywordstodel = [keyword.replace("_"," ").strip() for keyword in keywordstodel if keyword.replace("_"," ").strip() != ""]
-        if len(keywordstodel) == 0:
+        if not keywordstodel:
             print("No keywords removed for /"+boardtomodify+"/")
             continue
         for keyword in keywordstodel:
             if keyword in configjson["keywords"][boardtomodify]:
                 configjson["keywords"][boardtomodify].remove(keyword)
-        if len(configjson["keywords"][boardtomodify])==0:
+        if not configjson["keywords"][boardtomodify]:
             print("Stopped scraping /"+boardtomodify+"/")
             del configjson["keywords"][boardtomodify]
             if boardtomodify in configjson["noarchiveboards"]:
