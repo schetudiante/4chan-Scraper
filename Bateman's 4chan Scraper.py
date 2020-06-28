@@ -144,7 +144,7 @@ def viewscraping():
 ################################################################################
 
 def viewrequests():
-    if configjson["specialrequests"]:
+    if not configjson["specialrequests"]:
         print("Currently no special requests")
     else:
         print("Current special requests:")
