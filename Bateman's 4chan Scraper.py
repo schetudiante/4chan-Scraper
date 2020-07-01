@@ -73,16 +73,22 @@ def scrapethread(boardcode,threadopno,keyword,*args,**kwargs):
     if not os.path.exists(threadaddress):
         print("Error: failed to create folder '"+threadaddress+"'")
         return "keep"
+    #Normal or 4plebs
+    if '4plebs' in args:
+        threadjson_url = "http://archive.4plebs.org/_/api/chan/thread/?board={}&num={}".format(boardcode,str(threadopno))
+        imgdomain = "https://i.4pcdn.org/"
+    else:
+        threadjson_url = "https://a.4cdn.org/{}/thread/{}.json".format(boardcode,str(threadopno))
+        imgdomain = "https://i.4cdn.org/"
     #Try to get thread JSON if not 404ed
     try:
-        threadjson_url = ("https://a.4cdn.org/"+boardcode+"/thread/"+str(threadopno)+".json")
         threadjson_file = urllib.request.urlopen(threadjson_url)
         threadjson = json.load(threadjson_file)
         print("Scraping from /"+boardcode+"/:"+str(threadopno)+":"+keyword)
         for post in threadjson["posts"]:
             #If attachment present in JSON try to save from website if not 404ed
             if "tim" in post and not post["no"] in configjson["scrapednos"][boardcode]:
-                imgurl=("https://i.4cdn.org/"+boardcode+"/"+str(post["tim"])+post["ext"])
+                imgurl=(imgdomain+boardcode+"/"+str(post["tim"])+post["ext"])
                 imgaddress=(threadaddress+"\\"+str(post["no"])+post["ext"])
                 if not os.path.exists(imgaddress):
                     try:
