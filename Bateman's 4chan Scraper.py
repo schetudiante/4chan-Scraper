@@ -65,7 +65,7 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
 
 ################################################################################
 
-def scrapethread(boardcode,threadopno,keyword):
+def scrapethread(boardcode,threadopno,keyword,*args,**kwargs):
     noerrs = 1
     #Try to create folder
     threadaddress=(boardcode+"\\"+str(threadopno)+" "+keyword)
@@ -81,33 +81,34 @@ def scrapethread(boardcode,threadopno,keyword):
         print("Scraping from /"+boardcode+"/:"+str(threadopno)+":"+keyword)
         for post in threadjson["posts"]:
             #If attachment present in JSON try to save from website if not 404ed
-            if "tim" in post:
-                if not post["no"] in configjson["scrapednos"][boardcode]:
-                    imgurl=("https://i.4cdn.org/"+boardcode+"/"+str(post["tim"])+post["ext"])
-                    imgaddress=(threadaddress+"\\"+str(post["no"])+post["ext"])
-                    if not os.path.exists(imgaddress):
+            if "tim" in post and not post["no"] in configjson["scrapednos"][boardcode]:
+                imgurl=("https://i.4cdn.org/"+boardcode+"/"+str(post["tim"])+post["ext"])
+                imgaddress=(threadaddress+"\\"+str(post["no"])+post["ext"])
+                if not os.path.exists(imgaddress):
+                    try:
+                        urllib.request.urlretrieve(imgurl,imgaddress)
+                        configjson["scrapednos"][boardcode].append(post["no"])
+                    except Exception as e:
+                        #File error
                         try:
-                            urllib.request.urlretrieve(imgurl,imgaddress)
-                            configjson["scrapednos"][boardcode].append(post["no"])
-                        except Exception as e:
-                            try:
-                                if e.code == 404:
-                                    configjson["scrapednos"][boardcode].append(post["no"])
-                                    print("File /"+boardcode+"/:"+str(post["no"])+":"+keyword+" has expired")
-                                else:
-                                    raise Exception
-                            except:
-                                noerrs = 0
-                                print("Error: could not load file /"+boardcode+"/:"+str(post["no"])+":"+keyword)
-                    else:
-                        noerrs = 0
-                        print("Error: File /"+boardcode+"/:"+str(post["no"])+":"+keyword+" already exists; please move it")
+                            if e.code == 404:
+                                configjson["scrapednos"][boardcode].append(post["no"])
+                                print("File /"+boardcode+"/:"+str(post["no"])+":"+keyword+" has expired")
+                            else:
+                                raise Exception
+                        except:
+                            noerrs = 0
+                            print("Error: could not load file /"+boardcode+"/:"+str(post["no"])+":"+keyword)
+                else:
+                    noerrs = 0
+                    print("Error: File /"+boardcode+"/:"+str(post["no"])+":"+keyword+" already exists; please move it")
         delfolderifempty(threadaddress)
         if noerrs == 1 and "archived" in threadjson["posts"][0]:
             return "delete"
         else:
             return "keep"
     except Exception as e:
+        #Thread error
         delfolderifempty(threadaddress)
         try:
             if e.code == 404:
