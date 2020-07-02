@@ -18,6 +18,7 @@ def scrape():
         print('\n')
     if not configjson["keywords"]:
         print("Currently not scraping any boards")
+        print('\n')
     else:
         for boardcode in configjson["keywords"]:
             configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],boardcode in configjson["noarchiveboards"],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
@@ -83,6 +84,7 @@ def scrapethread(boardcode,threadopno,keyword):
         threadjson_file = urllib.request.urlopen(threadjson_url)
         threadjson = json.load(threadjson_file)
         impostslist = [{"no":post["no"],"tim":post["tim"],"ext":post["ext"]} for post in threadjson["posts"] if "tim" in post and not post["no"] in configjson["scrapednos"][boardcode]]
+        modus = '4chan'
     except Exception as e:
         #Thread error: try to get thread JSON from 4plebs if 404
         if hasattr(e,'code') and e.code == 404:
@@ -95,10 +97,11 @@ def scrapethread(boardcode,threadopno,keyword):
                     impostslist = []
                     if "op" in threadjson[str(threadopno)] and threadjson[str(threadopno)]["op"]["media"] != None and not threadjson[str(threadopno)]["op"]["num"] in configjson["scrapednos"][boardcode]:
                         impostslist.append({"no":threadjson[str(threadopno)]["op"]["num"],"tim":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[0],"ext":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[1]})
-                    if "posts" in threadjson:
-                        for post in threadjson["posts"]:
-                            if post["media"] != None and not post["num"] in configjson["scrapednos"][boardcode]:
-                                impostslist.append({"no":str(post["num"]),"tim":os.path.splitext(post["media"]["media"])[0],"ext":os.path.splitext(post["media"]["media"])[1]})
+                    if "posts" in threadjson[str(threadopno)]:
+                        for post in threadjson[str(threadopno)]["posts"]:
+                            if threadjson[str(threadopno)]["posts"][post]["media"] != None and not int(threadjson[str(threadopno)]["posts"][post]["num"]) in configjson["scrapednos"][boardcode]:
+                                impostslist.append({"no":str(threadjson[str(threadopno)]["posts"][post]["num"]),"tim":os.path.splitext(threadjson[str(threadopno)]["posts"][post]["media"]["media"])[0],"ext":os.path.splitext(threadjson[str(threadopno)]["posts"][post]["media"]["media"])[1]})
+                    modus = '4plebs'
                 except Exception as f:
                     if 'error' in threadjson and threadjson['error'] == 'Thread not found.':
                         print("Thread /{}/:{}:{} not found on 4plebs".format(boardcode,str(threadopno),keyword))
@@ -126,7 +129,7 @@ def scrapethread(boardcode,threadopno,keyword):
                 print("Error: File /{}/:{}:{} already exists; please move it".format(boardcode,str(post["no"]),keyword))
                 continue
             urllib.request.urlretrieve(imgurl,imgaddress)
-            configjson["scrapednos"][boardcode].append(post["no"])
+            configjson["scrapednos"][boardcode].append(int(post["no"]))
         except Exception as e:
             #File error
             if hasattr(e,'code') and e.code == 404:
@@ -136,7 +139,7 @@ def scrapethread(boardcode,threadopno,keyword):
                     imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
                     imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
                     urllib.request.urlretrieve(imgurl,imgaddress)
-                    configjson["scrapednos"][boardcode].append(post["no"])
+                    configjson["scrapednos"][boardcode].append(int(post["no"]))
                 except Exception as f:
                     if hasattr(f,'code') and f.code == 404:
                         print("File /{}/:{}:{} not found on 4plebs".format(boardcode,str(post["no"]),keyword))
@@ -153,7 +156,7 @@ def scrapethread(boardcode,threadopno,keyword):
         except:
             print("Error: Could not delete folder '{}'".format(threadaddress))
 
-    if ferrs == 0 and "archived" in threadjson["posts"][0]:
+    if ferrs == 0 and (modus == '4plebs' or "archived" in threadjson["posts"][0]):
         return 'delete'
     else:
         return 'keep'
