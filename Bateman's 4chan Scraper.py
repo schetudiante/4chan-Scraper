@@ -3,6 +3,9 @@ import urllib.request
 import json
 import os
 
+plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
+glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
+
 ################################################################################
 
 def scrape():
@@ -44,7 +47,7 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
                     for boxtocheck in boxestocheck:
                         for keyword in keywords:
                             if keyword in threadop[boxtocheck].lower():
-                                if scrapethread(boardcode,threadop["no"],keyword) == "keep":
+                                if scrapethread(boardcode,threadop["no"],keyword) == 'keep':
                                     scrapedactiveops.append([threadop["no"],keyword])
                                 boxbreak=1
                                 break
@@ -65,75 +68,95 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
 
 ################################################################################
 
-def scrapethread(boardcode,threadopno,keyword,*args,**kwargs):
-    noerrs = 1
+def scrapethread(boardcode,threadopno,keyword):
     #Try to create folder
-    threadaddress=(boardcode+"\\"+str(threadopno)+" "+keyword)
-    os.makedirs(threadaddress,exist_ok=True)
-    if not os.path.exists(threadaddress):
-        print("Error: failed to create folder '"+threadaddress+"'")
-        return "keep"
-    #Normal or 4plebs
-    if '4plebs' in args:
-        threadjson_url = "http://archive.4plebs.org/_/api/chan/thread/?board={}&num={}".format(boardcode,str(threadopno))
-        imgdomain = "https://i.4pcdn.org/"
-    else:
-        threadjson_url = "https://a.4cdn.org/{}/thread/{}.json".format(boardcode,str(threadopno))
-        imgdomain = "https://i.4cdn.org/"
-    #Try to get thread JSON if not 404ed
+    threadaddress=("{}\\{} {}".format(boardcode,str(threadopno),keyword))
     try:
+        os.makedirs(threadaddress,exist_ok=True)
+    except:
+        print("Error: failed to create folder '{}'".format(threadaddress))
+        return 'keep'
+
+    #Try to get thread JSON from 4chan
+    try:
+        threadjson_url = "https://a.4cdn.org/{}/thread/{}.json".format(boardcode,str(threadopno))
         threadjson_file = urllib.request.urlopen(threadjson_url)
         threadjson = json.load(threadjson_file)
-        print("Scraping from /"+boardcode+"/:"+str(threadopno)+":"+keyword)
-        for post in threadjson["posts"]:
-            #If attachment present in JSON try to save from website if not 404ed
-            if "tim" in post and not post["no"] in configjson["scrapednos"][boardcode]:
-                imgurl=(imgdomain+boardcode+"/"+str(post["tim"])+post["ext"])
-                imgaddress=(threadaddress+"\\"+str(post["no"])+post["ext"])
-                if not os.path.exists(imgaddress):
-                    try:
-                        urllib.request.urlretrieve(imgurl,imgaddress)
-                        configjson["scrapednos"][boardcode].append(post["no"])
-                    except Exception as e:
-                        #File error
-                        try:
-                            if e.code == 404:
-                                configjson["scrapednos"][boardcode].append(post["no"])
-                                print("File /"+boardcode+"/:"+str(post["no"])+":"+keyword+" has expired")
-                            else:
-                                raise Exception
-                        except:
-                            noerrs = 0
-                            print("Error: could not load file /"+boardcode+"/:"+str(post["no"])+":"+keyword)
-                else:
-                    noerrs = 0
-                    print("Error: File /"+boardcode+"/:"+str(post["no"])+":"+keyword+" already exists; please move it")
-        delfolderifempty(threadaddress)
-        if noerrs == 1 and "archived" in threadjson["posts"][0]:
-            return "delete"
-        else:
-            return "keep"
+        impostslist = [{"no":post["no"],"tim":post["tim"],"ext":post["ext"]} for post in threadjson["posts"] if "tim" in post and not post["no"] in configjson["scrapednos"][boardcode]]
     except Exception as e:
-        #Thread error
-        delfolderifempty(threadaddress)
-        try:
-            if e.code == 404:
-                print("Thread /"+boardcode+"/:"+str(threadopno)+":"+keyword+" has expired")
-                return "delete"
+        #Thread error: try to get thread JSON from 4plebs if 404
+        if hasattr(e,'code') and e.code == 404:
+            if boardcode in plebboards:
+                print("Thread /{}/:{}:{} not found on 4chan, trying 4plebs...".format(boardcode,str(threadopno),keyword))
+                try:
+                    threadjson_url = "http://archive.4plebs.org/_/api/chan/thread/?board={}&num={}".format(boardcode,str(threadopno))
+                    threadjson_file = urllib.request.urlopen(urllib.request.Request(threadjson_url,None,{'User-Agent':glowiebypass}))
+                    threadjson = json.load(threadjson_file)
+                    impostslist = []
+                    if "op" in threadjson[str(threadopno)] and threadjson[str(threadopno)]["op"]["media"] != None and not threadjson[str(threadopno)]["op"]["num"] in configjson["scrapednos"][boardcode]:
+                        impostslist.append({"no":threadjson[str(threadopno)]["op"]["num"],"tim":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[0],"ext":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[1]})
+                    if "posts" in threadjson:
+                        for post in threadjson["posts"]:
+                            if post["media"] != None and not post["num"] in configjson["scrapednos"][boardcode]:
+                                impostslist.append({"no":str(post["num"]),"tim":os.path.splitext(post["media"]["media"])[0],"ext":os.path.splitext(post["media"]["media"])[1]})
+                except Exception as f:
+                    if 'error' in threadjson and threadjson['error'] == 'Thread not found.':
+                        print("Thread /{}/:{}:{} not found on 4plebs".format(boardcode,str(threadopno),keyword))
+                        return 'delete'
+                    else:
+                        print("Error: Cannot load 4plebs thread /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
+                        return 'keep'
             else:
-                raise Exception
-        except:
-            print("Error: Cannot load thread /"+boardcode+"/:"+str(threadopno)+":"+keyword)
-            return "keep"
+                print("Thread /{}/:{}:{} not found on 4chan and not on 4plebs".format(boardcode,str(threadopno),keyword))
+                return 'delete'
+        else:
+            print("Error: Cannot load 4chan thread /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
+            return 'keep'
 
-################################################################################
-
-def delfolderifempty(address):
-    if not [f for f in os.listdir(address) if f != "desktop.ini"]:
+    ferrs = 0
+    print("Scraping from /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
+    for post in impostslist:
+        #If attachment present in JSON try to save from website if not 404ed
         try:
-            os.rmdir(address)
+            imgdomain = "https://i.4cdn.org/"
+            imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
+            imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
+            if os.path.exists(imgaddress):
+                ferrs = 1
+                print("Error: File /{}/:{}:{} already exists; please move it".format(boardcode,str(post["no"]),keyword))
+                continue
+            urllib.request.urlretrieve(imgurl,imgaddress)
+            configjson["scrapednos"][boardcode].append(post["no"])
+        except Exception as e:
+            #File error
+            if hasattr(e,'code') and e.code == 404:
+                print("File /{}/:{}:{} not found on 4chan, trying 4plebs...".format(boardcode,str(post["no"]),keyword))
+                try:
+                    imgdomain = "https://i.4pcdn.org/"
+                    imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
+                    imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
+                    urllib.request.urlretrieve(imgurl,imgaddress)
+                    configjson["scrapednos"][boardcode].append(post["no"])
+                except Exception as f:
+                    if hasattr(f,'code') and f.code == 404:
+                        print("File /{}/:{}:{} not found on 4plebs".format(boardcode,str(post["no"]),keyword))
+                    else:
+                        print("Error: Cannot load 4plebs file /{}/:{}:{}".format(boardcode,str(post["no"]),keyword))
+                        ferrs = 1
+            else:
+                print("Error: Cannot load 4chan file /{}/:{}:{}".format(boardcode,str(post["no"]),keyword))
+                ferrs = 1
+
+    if not [f for f in os.listdir(threadaddress) if f != "desktop.ini"]:
+        try:
+            os.rmdir(threadaddress)
         except:
-            print("Error: Could not delete folder '"+address+"'")
+            print("Error: Could not delete folder '{}'".format(threadaddress))
+
+    if ferrs == 0 and "archived" in threadjson["posts"][0]:
+        return 'delete'
+    else:
+        return 'keep'
 
 ################################################################################
 
