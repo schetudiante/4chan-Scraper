@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.1.1
+- Keyword is no longer required to be specified when removing a special request thread
+
 ## v1.1.0
 - Added [4plebs.org](https://www.4plebs.org) support: if a thread or file is not found on 4chan, 4plebs is then searched
 
