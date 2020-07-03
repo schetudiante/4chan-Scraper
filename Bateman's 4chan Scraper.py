@@ -3,6 +3,7 @@ import urllib.request
 import json
 import os
 
+boxestocheckfor=["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
 imgdomains = {'4chan':'https://i.4cdn.org/','4plebs':'https://i.4pcdn.org/'}
@@ -32,7 +33,6 @@ def scrape():
 ################################################################################
 
 def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
-    boxestocheckfor=["name","sub","com","filename"]
     scrapedactiveops=[]
     #Board Catalog JSON
     try:
@@ -61,10 +61,9 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
     #Previously scraped and now archived threads
     if noarchive == False:
         possiblyarchivedlist = [lastscrapeop for lastscrapeop in lastscrapeops if not lastscrapeop[0] in [scrapedactiveop[0] for scrapedactiveop in scrapedactiveops] and not lastscrapeop[0] in blacklist and lastscrapeop[1] in keywords]
-        if possiblyarchivedlist:
-            for possiblyarchivedop in possiblyarchivedlist:
-                if scrapethread(boardcode,possiblyarchivedop[0],possiblyarchivedop[1]) == "keep":
-                    scrapedactiveops.append(possiblyarchivedop)
+        for possiblyarchivedop in possiblyarchivedlist:
+            if scrapethread(boardcode,possiblyarchivedop[0],possiblyarchivedop[1]) == "keep":
+                scrapedactiveops.append(possiblyarchivedop)
 
     return scrapedactiveops
 
@@ -76,7 +75,7 @@ def scrapethread(boardcode,threadopno,keyword):
         threadjson_url = "https://a.4cdn.org/{}/thread/{}.json".format(boardcode,str(threadopno))
         threadjson_file = urllib.request.urlopen(threadjson_url)
         threadjson = json.load(threadjson_file)
-        impostslist = [{"no":post["no"],"tim":post["tim"],"ext":post["ext"]} for post in threadjson["posts"] if "tim" in post and not post["no"] in configjson["scrapednos"][boardcode]]
+        impostslist = [{"no":post["no"],"tim":post["tim"],"ext":post["ext"]} for post in threadjson["posts"] if "tim" in post]
         modus = '4chan'
     except Exception as e:
         #Thread error:
@@ -95,9 +94,9 @@ def scrapethread(boardcode,threadopno,keyword):
                         if "op" in threadjson[str(threadopno)] and threadjson[str(threadopno)]["op"]["media"] != None and not threadjson[str(threadopno)]["op"]["num"] in configjson["scrapednos"][boardcode]:
                             impostslist.append({"no":threadjson[str(threadopno)]["op"]["num"],"tim":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[0],"ext":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[1]})
                         if "posts" in threadjson[str(threadopno)]:
-                            for post in threadjson[str(threadopno)]["posts"]:
-                                if threadjson[str(threadopno)]["posts"][post]["media"] != None and not int(threadjson[str(threadopno)]["posts"][post]["num"]) in configjson["scrapednos"][boardcode]:
-                                    impostslist.append({"no":str(threadjson[str(threadopno)]["posts"][post]["num"]),"tim":os.path.splitext(threadjson[str(threadopno)]["posts"][post]["media"]["media"])[0],"ext":os.path.splitext(threadjson[str(threadopno)]["posts"][post]["media"]["media"])[1]})
+                            for postvalue in threadjson[str(threadopno)]["posts"].values():
+                                if postvalue["media"] != None:
+                                    impostslist.append({"no":str(postvalue["num"]),"tim":os.path.splitext(postvalue["media"]["media"])[0],"ext":os.path.splitext(postvalue["media"]["media"])[1]})
                         modus = '4plebs'
                 except Exception as f:
                     if hasattr(f,'code') and f.code in [404,'404']:
@@ -121,12 +120,16 @@ def scrapethread(boardcode,threadopno,keyword):
         print("Error: failed to create folder '{}'".format(threadaddress))
         return 'keep'
 
+    #Get files
     ferrs = 0 #For serious (non 404) errors
     print("Scraping from /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
     for post in impostslist:
+        #If already got, continue
+        if int(post["no"]) in configjson["scrapednos"][boardcode]:
+            continue
         #If attachment present in JSON try to save from website if not 404ed
         try:
-            imgdomain = imgdomains[modus] 
+            imgdomain = imgdomains[modus]
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
             if os.path.exists(imgaddress):
@@ -137,24 +140,32 @@ def scrapethread(boardcode,threadopno,keyword):
             configjson["scrapednos"][boardcode].append(int(post["no"]))
         except Exception as e:
             #File error
-            if hasattr(e,'code') and e.code == 404:
-                print("File /{}/:{}:{} not found on 4chan, trying 4plebs...".format(boardcode,str(post["no"]),keyword))
-                try:
-                    imgdomain = imgdomains['4plebs']
-                    imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
-                    imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
-                    urllib.request.urlretrieve(imgurl,imgaddress)
-                    configjson["scrapednos"][boardcode].append(int(post["no"]))
-                except Exception as f:
-                    if hasattr(f,'code') and f.code == 404:
-                        print("File /{}/:{}:{} not found on 4plebs".format(boardcode,str(post["no"]),keyword))
-                    else:
-                        print("Error: Cannot load 4plebs file /{}/:{}:{}".format(boardcode,str(post["no"]),keyword))
-                        ferrs = 1
-            else:
-                print("Error: Cannot load 4chan file /{}/:{}:{}".format(boardcode,str(post["no"]),keyword))
-                ferrs = 1
+            if modus == '4chan':
+                if hasattr(e,'code') and e.code == 404:
+                    print("File /{}/:{}:{} not found on 4chan, trying 4plebs...".format(boardcode,str(post["no"]),keyword))
+                    try:
+                        imgdomain = imgdomains['4plebs']
+                        imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
+                        imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
+                        urllib.request.urlretrieve(imgurl,imgaddress)
+                        configjson["scrapednos"][boardcode].append(int(post["no"]))
+                    except Exception as f:
+                        if hasattr(f,'code') and f.code == 404:
+                            print("File /{}/:{}:{} not found on 4plebs".format(boardcode,str(post["no"]),keyword))
+                        else:
+                            print("Error: Cannot load 4plebs file /{}/:{}:{}".format(boardcode,str(post["no"]),keyword))
+                            ferrs = 1
+                else:
+                    print("Error: Cannot load 4chan file /{}/:{}:{}".format(boardcode,str(post["no"]),keyword))
+                    ferrs = 1
+            elif modus == '4plebs':
+                if hasattr(e,'code') and e.code in [404,'404']:
+                    print("File /{}/:{}:{} not found on 4plebs".format(boardcode,str(post["no"]),keyword))
+                else:
+                    print("Error: Cannot load 4plebs file /{}/:{}:{}".format(boardcode,str(post["no"]),keyword))
+                    ferrs = 1
 
+    #Delete empty folder
     if not [f for f in os.listdir(threadaddress) if f != "desktop.ini"]:
         try:
             os.rmdir(threadaddress)
@@ -216,7 +227,7 @@ def saveconfig():
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version 1.0.7~~~~~')
+print('~~~~~Version 1.1.0~~~~~')
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.txt'):
