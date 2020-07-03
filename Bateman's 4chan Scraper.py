@@ -3,6 +3,11 @@ import urllib.request
 import json
 import os
 
+boxestocheckfor=["name","sub","com","filename"]
+plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
+glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
+imgdomains = {'4chan':'https://i.4cdn.org/','4plebs':'https://i.4pcdn.org/'}
+
 ################################################################################
 
 def scrape():
@@ -15,6 +20,7 @@ def scrape():
         print('\n')
     if not configjson["keywords"]:
         print("Currently not scraping any boards")
+        print('\n')
     else:
         for boardcode in configjson["keywords"]:
             configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],boardcode in configjson["noarchiveboards"],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
@@ -27,12 +33,11 @@ def scrape():
 ################################################################################
 
 def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
-    boxestocheckfor=["name","sub","com","filename"]
     scrapedactiveops=[]
     #Board Catalog JSON
     try:
-        print("~Getting JSON for catalog of /"+boardcode+"/~")
-        catalogjson_url = ("https://a.4cdn.org/"+boardcode+"/catalog.json")
+        print("~Getting JSON for catalog of /{}/~".format(boardcode))
+        catalogjson_url = ("https://a.4cdn.org/{}/catalog.json".format(boardcode))
         catalogjson_file = urllib.request.urlopen(catalogjson_url)
         catalogjson = json.load(catalogjson_file)
         #Search each thread for keywords
@@ -44,89 +49,133 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
                     for boxtocheck in boxestocheck:
                         for keyword in keywords:
                             if keyword in threadop[boxtocheck].lower():
-                                if scrapethread(boardcode,threadop["no"],keyword) == "keep":
+                                if scrapethread(boardcode,threadop["no"],keyword) == 'keep':
                                     scrapedactiveops.append([threadop["no"],keyword])
                                 boxbreak=1
                                 break
                         if boxbreak==1:
                             break
     except:
-        print("Error: Cannot load catalog for /"+boardcode+"/")
+        print("Error: Cannot load catalog for /{}/".format(boardcode))
 
     #Previously scraped and now archived threads
     if noarchive == False:
         possiblyarchivedlist = [lastscrapeop for lastscrapeop in lastscrapeops if not lastscrapeop[0] in [scrapedactiveop[0] for scrapedactiveop in scrapedactiveops] and not lastscrapeop[0] in blacklist and lastscrapeop[1] in keywords]
-        if possiblyarchivedlist:
-            for possiblyarchivedop in possiblyarchivedlist:
-                if scrapethread(boardcode,possiblyarchivedop[0],possiblyarchivedop[1]) == "keep":
-                    scrapedactiveops.append(possiblyarchivedop)
+        for possiblyarchivedop in possiblyarchivedlist:
+            if scrapethread(boardcode,possiblyarchivedop[0],possiblyarchivedop[1]) == "keep":
+                scrapedactiveops.append(possiblyarchivedop)
 
     return scrapedactiveops
 
 ################################################################################
 
 def scrapethread(boardcode,threadopno,keyword):
-    noerrs = 1
-    #Try to create folder
-    threadaddress=(boardcode+"\\"+str(threadopno)+" "+keyword)
-    os.makedirs(threadaddress,exist_ok=True)
-    if not os.path.exists(threadaddress):
-        print("Error: failed to create folder '"+threadaddress+"'")
-        return "keep"
-    #Try to get thread JSON if not 404ed
+    #Try to get thread JSON from 4chan
     try:
-        threadjson_url = ("https://a.4cdn.org/"+boardcode+"/thread/"+str(threadopno)+".json")
+        threadjson_url = "https://a.4cdn.org/{}/thread/{}.json".format(boardcode,str(threadopno))
         threadjson_file = urllib.request.urlopen(threadjson_url)
         threadjson = json.load(threadjson_file)
-        print("Scraping from /"+boardcode+"/:"+str(threadopno)+":"+keyword)
-        for post in threadjson["posts"]:
-            #If attachment present in JSON try to save from website if not 404ed
-            if "tim" in post:
-                if not post["no"] in configjson["scrapednos"][boardcode]:
-                    imgurl=("https://i.4cdn.org/"+boardcode+"/"+str(post["tim"])+post["ext"])
-                    imgaddress=(threadaddress+"\\"+str(post["no"])+post["ext"])
-                    if not os.path.exists(imgaddress):
-                        try:
-                            urllib.request.urlretrieve(imgurl,imgaddress)
-                            configjson["scrapednos"][boardcode].append(post["no"])
-                        except Exception as e:
-                            try:
-                                if e.code == 404:
-                                    configjson["scrapednos"][boardcode].append(post["no"])
-                                    print("File /"+boardcode+"/:"+str(post["no"])+":"+keyword+" has expired")
-                                else:
-                                    raise Exception
-                            except:
-                                noerrs = 0
-                                print("Error: could not load file /"+boardcode+"/:"+str(post["no"])+":"+keyword)
-                    else:
-                        noerrs = 0
-                        print("Error: File /"+boardcode+"/:"+str(post["no"])+":"+keyword+" already exists; please move it")
-        delfolderifempty(threadaddress)
-        if noerrs == 1 and "archived" in threadjson["posts"][0]:
-            return "delete"
-        else:
-            return "keep"
+        impostslist = [{"no":post["no"],"tim":post["tim"],"ext":post["ext"]} for post in threadjson["posts"] if "tim" in post]
+        modus = '4chan'
     except Exception as e:
-        delfolderifempty(threadaddress)
-        try:
-            if e.code == 404:
-                print("Thread /"+boardcode+"/:"+str(threadopno)+":"+keyword+" has expired")
-                return "delete"
+        #Thread error:
+        if hasattr(e,'code') and e.code == 404:
+            if boardcode in plebboards:
+                #If 404 error and plebboard then try to get thread JSON from 4plebs
+                print("Thread /{}/:{}:{} not found on 4chan, trying 4plebs...".format(boardcode,str(threadopno),keyword))
+                try:
+                    threadjson_url = "http://archive.4plebs.org/_/api/chan/thread/?board={}&num={}".format(boardcode,str(threadopno))
+                    threadjson_file = urllib.request.urlopen(urllib.request.Request(threadjson_url,None,{'User-Agent':glowiebypass}))
+                    threadjson = json.load(threadjson_file)
+                    if 'error' in threadjson and threadjson['error'] == 'Thread not found.':
+                        raise urllib.request.HTTPError(threadjson_url,404,'error key in json','','')
+                    else:
+                        impostslist = []
+                        if "op" in threadjson[str(threadopno)] and threadjson[str(threadopno)]["op"]["media"] != None and not threadjson[str(threadopno)]["op"]["num"] in configjson["scrapednos"][boardcode]:
+                            impostslist.append({"no":threadjson[str(threadopno)]["op"]["num"],"tim":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[0],"ext":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[1]})
+                        if "posts" in threadjson[str(threadopno)]:
+                            for postvalue in threadjson[str(threadopno)]["posts"].values():
+                                if postvalue["media"] != None:
+                                    impostslist.append({"no":str(postvalue["num"]),"tim":os.path.splitext(postvalue["media"]["media"])[0],"ext":os.path.splitext(postvalue["media"]["media"])[1]})
+                        modus = '4plebs'
+                except Exception as f:
+                    if hasattr(f,'code') and f.code in [404,'404']:
+                        print("Thread /{}/:{}:{} not found on 4plebs".format(boardcode,str(threadopno),keyword))
+                        return 'delete'
+                    else:
+                        print("Error: Cannot load 4plebs thread /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
+                        return 'keep'
             else:
-                raise Exception
-        except:
-            print("Error: Cannot load thread /"+boardcode+"/:"+str(threadopno)+":"+keyword)
-            return "keep"
+                print("Thread /{}/:{}:{} not found on 4chan and not on 4plebs".format(boardcode,str(threadopno),keyword))
+                return 'delete'
+        else:
+            print("Error: Cannot load 4chan thread /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
+            return 'keep'
 
-################################################################################
+    #Try to create folder
+    threadaddress=("{}\\{} {}".format(boardcode,str(threadopno),keyword))
+    try:
+        os.makedirs(threadaddress,exist_ok=True)
+    except:
+        print("Error: failed to create folder '{}'".format(threadaddress))
+        return 'keep'
 
-def delfolderifempty(address):
-    if not [f for f in os.listdir(address) if f != "desktop.ini"]:
+    #Get files
+    ferrs = 0 #For serious (non 404) errors
+    print("Scraping from /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
+    for post in impostslist:
+        #If already got, continue
+        if int(post["no"]) in configjson["scrapednos"][boardcode]:
+            continue
+        #If attachment present in JSON try to save from website if not 404ed
         try:
-            os.rmdir(address)
+            imgdomain = imgdomains[modus]
+            imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
+            imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
+            if os.path.exists(imgaddress):
+                ferrs = 1
+                print("Error: File /{}/:{}:{} already exists; please move it".format(boardcode,str(post["no"]),keyword))
+                continue
+            urllib.request.urlretrieve(imgurl,imgaddress)
+            configjson["scrapednos"][boardcode].append(int(post["no"]))
+        except Exception as e:
+            #File error
+            if modus == '4chan':
+                if hasattr(e,'code') and e.code == 404:
+                    print("File /{}/:{}:{} not found on 4chan, trying 4plebs...".format(boardcode,str(post["no"]),keyword))
+                    try:
+                        imgdomain = imgdomains['4plebs']
+                        imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
+                        imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
+                        urllib.request.urlretrieve(imgurl,imgaddress)
+                        configjson["scrapednos"][boardcode].append(int(post["no"]))
+                    except Exception as f:
+                        if hasattr(f,'code') and f.code == 404:
+                            print("File /{}/:{}:{} not found on 4plebs".format(boardcode,str(post["no"]),keyword))
+                        else:
+                            print("Error: Cannot load 4plebs file /{}/:{}:{}".format(boardcode,str(post["no"]),keyword))
+                            ferrs = 1
+                else:
+                    print("Error: Cannot load 4chan file /{}/:{}:{}".format(boardcode,str(post["no"]),keyword))
+                    ferrs = 1
+            elif modus == '4plebs':
+                if hasattr(e,'code') and e.code in [404,'404']:
+                    print("File /{}/:{}:{} not found on 4plebs".format(boardcode,str(post["no"]),keyword))
+                else:
+                    print("Error: Cannot load 4plebs file /{}/:{}:{}".format(boardcode,str(post["no"]),keyword))
+                    ferrs = 1
+
+    #Delete empty folder
+    if not [f for f in os.listdir(threadaddress) if f != "desktop.ini"]:
+        try:
+            os.rmdir(threadaddress)
         except:
-            print("Error: Could not delete folder '"+address+"'")
+            print("Error: Could not delete folder '{}'".format(threadaddress))
+
+    if ferrs == 0 and (modus == '4plebs' or "archived" in threadjson["posts"][0]):
+        return 'delete'
+    else:
+        return 'keep'
 
 ################################################################################
 
@@ -136,10 +185,10 @@ def viewscraping():
     else:
         print("Currently scraping:")
         for board in configjson["keywords"]:
-            print("/"+board+"/:",end=" ")
+            print("/{}/:".format(board),end=" ")
             for keyword in configjson["keywords"][board][:-1]:
-                print("'"+keyword,end="', ")
-            print("'"+configjson["keywords"][board][-1]+"'")
+                print("'{}',".format(keyword),end=" ")
+            print("'{}'".format(configjson["keywords"][board][-1]))
 
 ################################################################################
 
@@ -149,7 +198,7 @@ def viewrequests():
     else:
         print("Current special requests:")
         for req in configjson["specialrequests"]:
-            print("/"+req[0]+"/:"+str(req[1])+":"+req[2])
+            print("/{}/:{}:{}".format(req[0],str(req[1]),req[2]))
 
 ################################################################################
 
@@ -160,7 +209,7 @@ def viewblacklisting():
     else:
         print("Currently blacklisting:")
         for blb in nonemptyblbs:
-            print("/"+blb+"/:",end=" ")
+            print("/{}/:".format(blb),end=" ")
             for opno in configjson["blacklistedopnos"][blb][:-1]:
                 print(str(opno),end=", ")
             print(str(configjson["blacklistedopnos"][blb][-1]))
@@ -178,7 +227,7 @@ def saveconfig():
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version 1.0.7~~~~~')
+print('~~~~~Version 1.1.0~~~~~')
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.txt'):
@@ -240,10 +289,10 @@ while True:
             configjson["scrapednos"][requestboard]=[]
         if not [requestboard,requestopno,requestkeyword] in configjson["specialrequests"]:
             configjson["specialrequests"].append([requestboard,requestopno,requestkeyword])
-            print("Thread /"+requestboard+"/:"+str(requestopno)+":"+requestkeyword+" added to special requests")
+            print("Thread /{}/:{}:{} added to special requests".format(requestboard,str(requestopno),requestkeyword))
         else:
             configjson["specialrequests"].remove([requestboard,requestopno,requestkeyword])
-            print("Thread /"+requestboard+"/:"+str(requestopno)+":"+requestkeyword+" removed from special requests")
+            print("Thread /{}/:{}:{} removed from special requests".format(requestboard,str(requestopno),requestkeyword))
         saveconfig()
 
     elif action in ["BLACKLIST","B","BLACK","BL"]:
@@ -262,10 +311,10 @@ while True:
             configjson["blacklistedopnos"][blacklistboard]=[]
         if not blacklistopno in configjson["blacklistedopnos"][blacklistboard]:
             configjson["blacklistedopnos"][blacklistboard].append(blacklistopno)
-            print("Now blacklisting /"+blacklistboard+"/:"+str(blacklistopno))
+            print("Now blacklisting /{}/:{}".format(blacklistboard,str(blacklistopno)))
         else:
             configjson["blacklistedopnos"][blacklistboard].remove(blacklistopno)
-            print("No longer blacklisting /"+blacklistboard+"/:"+str(blacklistopno))
+            print("No longer blacklisting /{}/:{}".format(blacklistboard,str(blacklistopno)))
         saveconfig()
 
     elif action in ["VIEW","V"]:
@@ -283,7 +332,7 @@ while True:
             print("No board supplied")
             continue
         if not boardtomodify in configjson["keywords"]:
-            boardtomodifyarchive = input("Does /"+boardtomodify+"/ have an archive? (Y/N) ").upper().strip()
+            boardtomodifyarchive = input("Does /{}/ have an archive? (Y/N) ".format(boardtomodify)).upper().strip()
             if not boardtomodifyarchive in ["Y","N"]:
                 print("Error: Expected Y or N")
                 continue
@@ -293,9 +342,9 @@ while True:
         keywordstoadd = [keyword.replace("_"," ").strip() for keyword in keywordstoadd if keyword.replace("_"," ").strip() != ""]
         if not keywordstoadd:
             if boardtomodify in configjson["keywords"]:
-                print("No more keywords added for /"+boardtomodify+"/")
+                print("No more keywords added for /{}/".format(boardtomodify))
             else:
-                print("No keywords added for /"+boardtomodify+"/, not scraping it")
+                print("No keywords added for /{}/, not scraping it".format(boardtomodify))
             continue
         if not boardtomodify in configjson["keywords"]:
             configjson["keywords"][boardtomodify]=[]
@@ -310,10 +359,10 @@ while True:
         for keyword in keywordstoadd:
             if not keyword in configjson["keywords"][boardtomodify]:
                 configjson["keywords"][boardtomodify].append(keyword)
-        print("Keywords for /"+boardtomodify+"/ updated to:",end=" ")
+        print("Keywords for /{}/ updated to:".format(boardtomodify),end=" ")
         for keyword in configjson["keywords"][boardtomodify][:-1]:
-            print("'"+keyword,end="', ")
-        print("'"+configjson["keywords"][boardtomodify][-1]+"'")
+            print("'{}',".format(keyword),end=" ")
+        print("'{}'".format(configjson["keywords"][boardtomodify][-1]))
         saveconfig()
 
     elif action in ["DELETE","DEL","D"]:
@@ -327,26 +376,26 @@ while True:
             print("No board supplied")
             continue
         if not boardtomodify in configjson["keywords"]:
-            print("Currently not scraping /"+boardtomodify+"/")
+            print("Currently not scraping /{}/".format(boardtomodify))
             continue
         keywordstodel=input("Which keywords to stop scraping for? ").lower().split()
         keywordstodel = [keyword.replace("_"," ").strip() for keyword in keywordstodel if keyword.replace("_"," ").strip() != ""]
         if not keywordstodel:
-            print("No keywords removed for /"+boardtomodify+"/")
+            print("No keywords removed for /{}/".format(boardtomodify))
             continue
         for keyword in keywordstodel:
             if keyword in configjson["keywords"][boardtomodify]:
                 configjson["keywords"][boardtomodify].remove(keyword)
         if not configjson["keywords"][boardtomodify]:
-            print("Stopped scraping /"+boardtomodify+"/")
+            print("Stopped scraping /{}/".format(boardtomodify))
             del configjson["keywords"][boardtomodify]
             if boardtomodify in configjson["noarchiveboards"]:
                 configjson["noarchiveboards"].remove(boardtomodify)
         else:
-            print("Keywords for /"+boardtomodify+"/ updated to:",end=" ")
+            print("Keywords for /{}/ updated to:".format(boardtomodify),end=" ")
             for keyword in configjson["keywords"][boardtomodify][:-1]:
-                print("'"+keyword,end="', ")
-            print("'"+configjson["keywords"][boardtomodify][-1]+"'")
+                print("'{}',".format(keyword),end=" ")
+            print("'{}'".format(configjson["keywords"][boardtomodify][-1]))
         saveconfig()
 
     else:
