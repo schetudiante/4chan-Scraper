@@ -3,6 +3,7 @@ import urllib.request
 import json
 import os
 
+newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor=["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
@@ -16,7 +17,7 @@ def scrape():
         print('\n')
     else:
         print("~Doing special requests~")
-        configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2])=="keep"]
+        configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2])=='keep']
         print('\n')
     if not configjson["keywords"]:
         print("Currently not scraping any boards")
@@ -227,14 +228,14 @@ def saveconfig():
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version 1.1.0~~~~~')
+print('~~~~~Version 1.1.1~~~~~')
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.txt'):
     with open('scraperconfig.txt') as configjson_file:
         configjson = json.load(configjson_file)
 else:
-    configjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
+    configjson = newconfigjson
     saveconfig()
     print("")
     print("Created config file 'scraperconfig.txt'")
@@ -274,7 +275,7 @@ while True:
         viewrequests()
         print('\n')
         requestboard = input("Which board is the thread on? ").lower().strip()
-        if requestboard == "":
+        if not requestboard:
             print("No board supplied")
             continue
         try:
@@ -282,24 +283,27 @@ while True:
         except:
             print("Error: Invalid number")
             continue
-        requestkeyword = input("What keyword(s) to tag folder with? ").lower().replace("_"," ").strip()
-        if requestkeyword == "":
-            requestkeyword = "request"
-        if not requestboard in configjson["scrapednos"]:
-            configjson["scrapednos"][requestboard]=[]
-        if not [requestboard,requestopno,requestkeyword] in configjson["specialrequests"]:
-            configjson["specialrequests"].append([requestboard,requestopno,requestkeyword])
-            print("Thread /{}/:{}:{} added to special requests".format(requestboard,str(requestopno),requestkeyword))
+        alreadyreq = [req for req in configjson['specialrequests'] if [req[0],req[1]] == [requestboard,requestopno]]
+        if alreadyreq:
+            for req in alreadyreq:
+                configjson["specialrequests"].remove(req)
+                print("Thread /{}/:{}:{} removed from special requests".format(req[0],str(req[1]),req[2]))
         else:
-            configjson["specialrequests"].remove([requestboard,requestopno,requestkeyword])
-            print("Thread /{}/:{}:{} removed from special requests".format(requestboard,str(requestopno),requestkeyword))
+            requestkeyword = input("What keyword(s) to tag folder with? ").lower().replace("_"," ").strip()
+            if not requestkeyword:
+                requestkeyword = "request"
+            if not requestboard in configjson["scrapednos"]:
+                configjson["scrapednos"][requestboard]=[]
+            if not [requestboard,requestopno,requestkeyword] in configjson["specialrequests"]:
+                configjson["specialrequests"].append([requestboard,requestopno,requestkeyword])
+                print("Thread /{}/:{}:{} added to special requests".format(requestboard,str(requestopno),requestkeyword))
         saveconfig()
 
     elif action in ["BLACKLIST","B","BLACK","BL"]:
         viewblacklisting()
         print('\n')
         blacklistboard = input("Which board is the thread on? ").lower().strip()
-        if blacklistboard == "":
+        if not blacklistboard:
             print("No board supplied")
             continue
         try:
@@ -328,7 +332,7 @@ while True:
         viewscraping()
         print('\n')
         boardtomodify = input("Which board to add keywords to? ").lower().strip()
-        if boardtomodify == "":
+        if not boardtomodify:
             print("No board supplied")
             continue
         if not boardtomodify in configjson["keywords"]:
@@ -372,7 +376,7 @@ while True:
         viewscraping()
         print('\n')
         boardtomodify = input("Which board to delete keywords from? ").lower().strip()
-        if boardtomodify == "":
+        if not boardtomodify:
             print("No board supplied")
             continue
         if not boardtomodify in configjson["keywords"]:
