@@ -3,8 +3,9 @@ import urllib.request
 import json
 import os
 
+version = '1.1.3beta'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
-boxestocheckfor=["name","sub","com","filename"]
+boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
 
@@ -281,7 +282,7 @@ def saveconfig():
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version 1.1.2~~~~~')
+print('~~~~~Version {}~~~~~'.format(version))
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.txt'):
