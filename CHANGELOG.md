@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.1.2
+- 4plebs thumbnails that exist for files whose original cannot be found on 4plebs are now scraped into a subfolder of the corresponding thread folder
+- Updated "HELP" text
+- Optimised grabbing of JSONs by refactoring 'file list' and 'file scrape' functions to be more uniform / expandable across different APIs
+
 ## v1.1.1
 - Keyword is no longer required to be specified when removing a special request thread
 
