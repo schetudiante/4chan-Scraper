@@ -121,10 +121,10 @@ def scrapethread(boardcode,threadopno,keyword):
 def getfilelist(boardcode,threadopno,keyword,modus):
     if modus == '4chan':
         try:
-            threadjson_url = "https://a.4cdn.org/{}/thread/{}.json".format(boardcode,str(threadopno))
+            threadjson_url = 'https://a.4cdn.org/{}/thread/{}.json'.format(boardcode,str(threadopno))
             threadjson_file = urllib.request.urlopen(threadjson_url)
             threadjson = json.load(threadjson_file)
-            impostslist = [{"no":post["no"],"tim":post["tim"],"ext":post["ext"]} for post in threadjson["posts"] if "tim" in post]
+            impostslist = [{"no":post['no'],"tim":post['tim'],"ext":post['ext']} for post in threadjson["posts"] if "tim" in post]
             return ['success',impostslist,'archived' in threadjson["posts"][0]]
         except Exception as e:
             #Thread error:
