@@ -1,7 +1,7 @@
-from io import BytesIO
-import urllib.request
-import json
-import os
+from io import BytesIO  #  reading + writing to config file
+import urllib.request   #  getting files from web
+import json             #  dumping config into json format
+import os               #  creating folders
 
 version = '1.1.3beta'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
