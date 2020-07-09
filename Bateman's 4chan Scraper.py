@@ -14,18 +14,18 @@ glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Geck
 def scrape():
     if not configjson["specialrequests"]:
         print("Currently no special requests")
-        print('\n')
+        print()
     else:
         print("~Doing special requests~")
         configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2])=='keep']
-        print('\n')
+        print()
     if not configjson["keywords"]:
         print("Currently not scraping any boards")
-        print('\n')
+        print()
     else:
         for boardcode in configjson["keywords"]:
             configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],boardcode in configjson["noarchiveboards"],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
-            print('\n')
+            print()
     print("~Updating log~")
     saveconfig()
     print("~Log updated~")
@@ -90,7 +90,7 @@ def scrapethread(boardcode,threadopno,keyword):
 
     #Scrape files
     keepflag = 0
-    print("Scraping from /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
+    print("Scraping /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
     for post in impostslist:
         if int(post["no"]) in configjson["scrapednos"][boardcode]:
             continue
@@ -291,7 +291,7 @@ if os.path.exists('scraperconfig.txt'):
 else:
     configjson = newconfigjson
     saveconfig()
-    print("")
+    print()
     print("Created config file 'scraperconfig.txt'")
 
 #Main loop
@@ -306,8 +306,8 @@ while True:
     elif action in ["HELP","H"]:
         print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made. 4plebs is also sourced")
         print("The file 'scraperconfig.txt' stores the program's config in the program's directory")
-        print("Scraped files are saved in nested directories in the same directory as the program")
-        print()
+        print("Scraped files are saved in nested directories in the same directory as the program\n")
+
         print("SCRAPE     /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
         print("SCRAPEQUIT / SQ: Scrapes then closes the program")
         print("REQUEST    /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
@@ -327,7 +327,7 @@ while True:
 
     elif action in ["REQUEST","R"]:
         viewrequests()
-        print('\n')
+        print()
         requestboard = input("Which board is the thread on? ").lower().strip()
         if not requestboard:
             print("No board supplied")
@@ -355,7 +355,7 @@ while True:
 
     elif action in ["BLACKLIST","B","BLACK","BL"]:
         viewblacklisting()
-        print('\n')
+        print()
         blacklistboard = input("Which board is the thread on? ").lower().strip()
         if not blacklistboard:
             print("No board supplied")
@@ -377,14 +377,14 @@ while True:
 
     elif action in ["VIEW","V"]:
         viewscraping()
-        print('\n')
+        print()
         viewrequests()
-        print('\n')
+        print()
         viewblacklisting()
 
     elif action in ["ADD","A"]:
         viewscraping()
-        print('\n')
+        print()
         boardtomodify = input("Which board to add keywords to? ").lower().strip()
         if not boardtomodify:
             print("No board supplied")
@@ -428,7 +428,7 @@ while True:
             print("Currently not scraping any boards")
             continue
         viewscraping()
-        print('\n')
+        print()
         boardtomodify = input("Which board to delete keywords from? ").lower().strip()
         if not boardtomodify:
             print("No board supplied")
