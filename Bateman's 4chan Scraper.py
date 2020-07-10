@@ -1,10 +1,11 @@
-from io import BytesIO
-import urllib.request
-import json
-import os
+from io import BytesIO  #  reading + writing to config file
+import urllib.request   #  getting files from web
+import json             #  dumping config into json format
+import os               #  creating folders
 
+version = '1.1.3'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
-boxestocheckfor=["name","sub","com","filename"]
+boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
 
@@ -13,18 +14,18 @@ glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Geck
 def scrape():
     if not configjson["specialrequests"]:
         print("Currently no special requests")
-        print('\n')
+        print()
     else:
         print("~Doing special requests~")
         configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2])=='keep']
-        print('\n')
+        print()
     if not configjson["keywords"]:
         print("Currently not scraping any boards")
-        print('\n')
+        print()
     else:
         for boardcode in configjson["keywords"]:
             configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],boardcode in configjson["noarchiveboards"],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
-            print('\n')
+            print()
     print("~Updating log~")
     saveconfig()
     print("~Log updated~")
@@ -89,7 +90,7 @@ def scrapethread(boardcode,threadopno,keyword):
 
     #Scrape files
     keepflag = 0
-    print("Scraping from /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
+    print("Scraping /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
     for post in impostslist:
         if int(post["no"]) in configjson["scrapednos"][boardcode]:
             continue
@@ -103,8 +104,13 @@ def scrapethread(boardcode,threadopno,keyword):
             elif result == 'try_next_modus':
                 continue
 
-    #Delete empty folder (need to check empty thumbs too)
-    if not [f for f in os.listdir(threadaddress) if f != "desktop.ini"]:
+    #Delete empty folder (or / and thumbs subfolder)
+    if 'thumbs' in os.listdir(threadaddress) and not [f for f in os.listdir('{}\\thumbs'.format(threadaddress))]:
+        try:
+            os.rmdir('{}\\thumbs'.format(threadaddress))
+        except:
+            print("Error: Could not delete folder '{}\\thumbs'".format(threadaddress))
+    if not [f for f in os.listdir(threadaddress)]:
         try:
             os.rmdir(threadaddress)
         except:
@@ -120,10 +126,10 @@ def scrapethread(boardcode,threadopno,keyword):
 def getfilelist(boardcode,threadopno,keyword,modus):
     if modus == '4chan':
         try:
-            threadjson_url = "https://a.4cdn.org/{}/thread/{}.json".format(boardcode,str(threadopno))
+            threadjson_url = 'https://a.4cdn.org/{}/thread/{}.json'.format(boardcode,str(threadopno))
             threadjson_file = urllib.request.urlopen(threadjson_url)
             threadjson = json.load(threadjson_file)
-            impostslist = [{"no":post["no"],"tim":post["tim"],"ext":post["ext"]} for post in threadjson["posts"] if "tim" in post]
+            impostslist = [{"no":post['no'],"tim":post['tim'],"ext":post['ext']} for post in threadjson["posts"] if "tim" in post]
             return ['success',impostslist,'archived' in threadjson["posts"][0]]
         except Exception as e:
             #Thread error:
@@ -281,7 +287,7 @@ def saveconfig():
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version 1.1.2~~~~~')
+print('~~~~~Version {}~~~~~'.format(version))
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.txt'):
@@ -290,7 +296,7 @@ if os.path.exists('scraperconfig.txt'):
 else:
     configjson = newconfigjson
     saveconfig()
-    print("")
+    print()
     print("Created config file 'scraperconfig.txt'")
 
 #Main loop
@@ -305,8 +311,8 @@ while True:
     elif action in ["HELP","H"]:
         print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made. 4plebs is also sourced")
         print("The file 'scraperconfig.txt' stores the program's config in the program's directory")
-        print("Scraped files are saved in nested directories in the same directory as the program")
-        print()
+        print("Scraped files are saved in nested directories in the same directory as the program\n")
+
         print("SCRAPE     /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
         print("SCRAPEQUIT / SQ: Scrapes then closes the program")
         print("REQUEST    /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
@@ -326,7 +332,7 @@ while True:
 
     elif action in ["REQUEST","R"]:
         viewrequests()
-        print('\n')
+        print()
         requestboard = input("Which board is the thread on? ").lower().strip()
         if not requestboard:
             print("No board supplied")
@@ -354,7 +360,7 @@ while True:
 
     elif action in ["BLACKLIST","B","BLACK","BL"]:
         viewblacklisting()
-        print('\n')
+        print()
         blacklistboard = input("Which board is the thread on? ").lower().strip()
         if not blacklistboard:
             print("No board supplied")
@@ -376,14 +382,14 @@ while True:
 
     elif action in ["VIEW","V"]:
         viewscraping()
-        print('\n')
+        print()
         viewrequests()
-        print('\n')
+        print()
         viewblacklisting()
 
     elif action in ["ADD","A"]:
         viewscraping()
-        print('\n')
+        print()
         boardtomodify = input("Which board to add keywords to? ").lower().strip()
         if not boardtomodify:
             print("No board supplied")
@@ -427,7 +433,7 @@ while True:
             print("Currently not scraping any boards")
             continue
         viewscraping()
-        print('\n')
+        print()
         boardtomodify = input("Which board to delete keywords from? ").lower().strip()
         if not boardtomodify:
             print("No board supplied")
