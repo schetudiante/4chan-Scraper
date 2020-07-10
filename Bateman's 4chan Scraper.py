@@ -3,7 +3,7 @@ import urllib.request   #  getting files from web
 import json             #  dumping config into json format
 import os               #  creating folders
 
-version = '1.1.3beta'
+version = '1.1.3'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -104,8 +104,13 @@ def scrapethread(boardcode,threadopno,keyword):
             elif result == 'try_next_modus':
                 continue
 
-    #Delete empty folder (need to check empty thumbs too)
-    if not [f for f in os.listdir(threadaddress) if f != "desktop.ini"]:
+    #Delete empty folder (or / and thumbs subfolder)
+    if 'thumbs' in os.listdir(threadaddress) and not [f for f in os.listdir('{}\\thumbs'.format(threadaddress))]:
+        try:
+            os.rmdir('{}\\thumbs'.format(threadaddress))
+        except:
+            print("Error: Could not delete folder '{}\\thumbs'".format(threadaddress))
+    if not [f for f in os.listdir(threadaddress)]:
         try:
             os.rmdir(threadaddress)
         except:
