@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.3
+- Empty thumbnail folders are now removed
+- Minor appearance change - reduced the number of double-line gaps in console
+
 ## v1.1.2
 - 4plebs thumbnails that exist for files whose original cannot be found on 4plebs are now scraped into a subfolder of the corresponding thread folder
 - Updated "HELP" text
