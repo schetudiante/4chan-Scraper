@@ -3,7 +3,7 @@ import urllib.request   #  getting files from web
 import json             #  dumping config into json format
 import os               #  creating folders
 
-version = '1.1.3'
+version = '1.1.4beta'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -136,7 +136,7 @@ def getfilelist(boardcode,threadopno,keyword,modus):
             if hasattr(e,'code') and e.code == 404:
                 if boardcode in plebboards:
                     #If 404 error and plebboard then try to get thread JSON from 4plebs
-                    print("Thread /{}/:{}:{} not found on 4chan, scraping 4plebs thread".format(boardcode,str(threadopno),keyword))
+                    print("Thread /{}/:{}:{} not found on 4chan, trying 4plebs".format(boardcode,str(threadopno),keyword))
                     return ['try_4plebs']
                 else:
                     print("Thread /{}/:{}:{} not found on 4chan and not on 4plebs".format(boardcode,str(threadopno),keyword))
