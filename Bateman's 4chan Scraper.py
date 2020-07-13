@@ -49,7 +49,7 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
                         for keyword in keywords:
                             if keyword in threadop[boxtocheck].lower():
                                 if scrapethread(boardcode,threadop["no"],keyword) == 'keep':
-                                    scrapedactiveops.append([threadop["no"],keyword])
+                                    scrapedactiveops.insert(0,[threadop["no"],keyword])
                                 boxbreak=1
                                 break
                         if boxbreak==1:
@@ -62,7 +62,7 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
         possiblyarchivedlist = [lastscrapeop for lastscrapeop in lastscrapeops if not lastscrapeop[0] in [scrapedactiveop[0] for scrapedactiveop in scrapedactiveops] and not lastscrapeop[0] in blacklist and lastscrapeop[1] in keywords]
         for possiblyarchivedop in possiblyarchivedlist:
             if scrapethread(boardcode,possiblyarchivedop[0],possiblyarchivedop[1]) == 'keep':
-                scrapedactiveops.append(possiblyarchivedop)
+                scrapedactiveops.insert(0,possiblyarchivedop)
 
     return scrapedactiveops
 
@@ -181,7 +181,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             imgdomain = 'https://i.4cdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             urllib.request.urlretrieve(imgurl,imgaddress)
-            configjson["scrapednos"][boardcode].append(int(post["no"]))
+            configjson["scrapednos"][boardcode].insert(0,int(post["no"]))
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code == 404:
@@ -200,7 +200,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             urllib.request.urlretrieve(imgurl,imgaddress)
-            configjson["scrapednos"][boardcode].append(int(post["no"]))
+            configjson["scrapednos"][boardcode].insert(0,int(post["no"]))
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']:
@@ -225,7 +225,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}s.jpg".format(imgdomain,boardcode,str(post["tim"]))
             urllib.request.urlretrieve(imgurl,imgaddress)
-            configjson["scrapednos"][boardcode].append(int(post["no"]))
+            configjson["scrapednos"][boardcode].insert(0,int(post["no"]))
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']:
