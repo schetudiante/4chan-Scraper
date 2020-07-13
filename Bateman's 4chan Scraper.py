@@ -15,15 +15,16 @@ def scrape():
     if not configjson["specialrequests"]:
         print("Currently no special requests\n")
     else:
-        print("~Doing special requests\n~")
+        print("~Doing special requests~")
         configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2])=='keep']
+        print()
     if not configjson["keywords"]:
         print("Currently not scraping any boards\n")
     else:
         for boardcode in configjson["keywords"]:
             configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],boardcode in configjson["noarchiveboards"],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
-
-    print("\n~Updating log~")
+            print()
+    print("~Updating log~")
     saveconfig()
     print("~Log updated~")
     print("~Done scraping~")
