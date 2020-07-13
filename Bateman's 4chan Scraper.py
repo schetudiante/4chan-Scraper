@@ -3,7 +3,7 @@ import urllib.request   #  getting files from web
 import json             #  dumping config into json format
 import os               #  creating folders
 
-version = '1.1.3'
+version = '1.2.0'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -14,14 +14,12 @@ glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Geck
 def scrape():
     if not configjson["specialrequests"]:
         print("Currently no special requests")
-        print()
     else:
         print("~Doing special requests~")
         configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2])=='keep']
-        print()
+    print()
     if not configjson["keywords"]:
-        print("Currently not scraping any boards")
-        print()
+        print("Currently not scraping any boards\n")
     else:
         for boardcode in configjson["keywords"]:
             configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],boardcode in configjson["noarchiveboards"],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
@@ -51,7 +49,7 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
                         for keyword in keywords:
                             if keyword in threadop[boxtocheck].lower():
                                 if scrapethread(boardcode,threadop["no"],keyword) == 'keep':
-                                    scrapedactiveops.append([threadop["no"],keyword])
+                                    scrapedactiveops.insert(0,[threadop["no"],keyword])
                                 boxbreak=1
                                 break
                         if boxbreak==1:
@@ -64,7 +62,7 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
         possiblyarchivedlist = [lastscrapeop for lastscrapeop in lastscrapeops if not lastscrapeop[0] in [scrapedactiveop[0] for scrapedactiveop in scrapedactiveops] and not lastscrapeop[0] in blacklist and lastscrapeop[1] in keywords]
         for possiblyarchivedop in possiblyarchivedlist:
             if scrapethread(boardcode,possiblyarchivedop[0],possiblyarchivedop[1]) == 'keep':
-                scrapedactiveops.append(possiblyarchivedop)
+                scrapedactiveops.insert(0,possiblyarchivedop)
 
     return scrapedactiveops
 
@@ -136,7 +134,7 @@ def getfilelist(boardcode,threadopno,keyword,modus):
             if hasattr(e,'code') and e.code == 404:
                 if boardcode in plebboards:
                     #If 404 error and plebboard then try to get thread JSON from 4plebs
-                    print("Thread /{}/:{}:{} not found on 4chan, scraping 4plebs thread".format(boardcode,str(threadopno),keyword))
+                    print("Thread /{}/:{}:{} not found on 4chan, trying 4plebs".format(boardcode,str(threadopno),keyword))
                     return ['try_4plebs']
                 else:
                     print("Thread /{}/:{}:{} not found on 4chan and not on 4plebs".format(boardcode,str(threadopno),keyword))
@@ -183,7 +181,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             imgdomain = 'https://i.4cdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             urllib.request.urlretrieve(imgurl,imgaddress)
-            configjson["scrapednos"][boardcode].append(int(post["no"]))
+            configjson["scrapednos"][boardcode].insert(0,int(post["no"]))
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code == 404:
@@ -202,7 +200,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             urllib.request.urlretrieve(imgurl,imgaddress)
-            configjson["scrapednos"][boardcode].append(int(post["no"]))
+            configjson["scrapednos"][boardcode].insert(0,int(post["no"]))
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']:
@@ -220,14 +218,14 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             except:
                 print("Error: failed to create folder '{}'".format(threadaddress))
                 return 'keep'
-            imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),'.jpg')
+            imgaddress = "{}\\{}.jpg".format(threadaddress,str(post["no"]))
             if os.path.exists(imgaddress):
                 print("Error: File /{}/:{}:{}:{}(thumb) already exists; please move it".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'keep'
             imgdomain = 'https://i.4pcdn.org/'
-            imgurl = "{}{}/{}s{}".format(imgdomain,boardcode,str(post["tim"]),'.jpg')
+            imgurl = "{}{}/{}s.jpg".format(imgdomain,boardcode,str(post["tim"]))
             urllib.request.urlretrieve(imgurl,imgaddress)
-            configjson["scrapednos"][boardcode].append(int(post["no"]))
+            configjson["scrapednos"][boardcode].insert(0,int(post["no"]))
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']:
@@ -296,13 +294,12 @@ if os.path.exists('scraperconfig.txt'):
 else:
     configjson = newconfigjson
     saveconfig()
-    print()
-    print("Created config file 'scraperconfig.txt'")
+    print("\nCreated config file 'scraperconfig.txt'")
 
 #Main loop
 while True:
     print('\n')
-    action=input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/BLACKLIST/VIEW/ADD/DELETE/HELP/QUIT) ").upper().strip()
+    action = input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/BLACKLIST/VIEW/ADD/DELETE/MAINTENANCE/HELP/QUIT) ").upper().strip()
     print('\n')
 
     if action in ["QUIT","Q"]:
@@ -313,15 +310,16 @@ while True:
         print("The file 'scraperconfig.txt' stores the program's config in the program's directory")
         print("Scraped files are saved in nested directories in the same directory as the program\n")
 
-        print("SCRAPE     /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
-        print("SCRAPEQUIT / SQ: Scrapes then closes the program")
-        print("REQUEST    /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
-        print("BLACKLIST  /  B: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
-        print("VIEW       /  V: View the keywords that are currently being searched for")
-        print("ADD        /  A: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
-        print("DELETE     /  D: Delete keywords to no longer search for")
-        print("HELP       /  H: Shows this help text")
-        print("QUIT       /  Q: Closes the program")
+        print("SCRAPE      /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
+        print("SCRAPEQUIT  / SQ: Scrapes then closes the program")
+        print("REQUEST     /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
+        print("BLACKLIST   /  B: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
+        print("VIEW        /  V: View the keywords that are currently being searched for")
+        print("ADD         /  A: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
+        print("DELETE      /  D: Delete keywords to no longer search for")
+        print("MAINTENANCE /  M: Remove any possible duplicate numbers that have arisen in the config from external editing and reorder in descending order for faster search time. Keywords are also put into alphabetical order")
+        print("HELP        /  H: Shows this help text")
+        print("QUIT        /  Q: Closes the program")
 
     elif action in ["SCRAPE","S"]:
         scrape()
@@ -332,8 +330,7 @@ while True:
 
     elif action in ["REQUEST","R"]:
         viewrequests()
-        print()
-        requestboard = input("Which board is the thread on? ").lower().strip()
+        requestboard = input("\nWhich board is the thread on? ").lower().strip()
         if not requestboard:
             print("No board supplied")
             continue
@@ -360,8 +357,7 @@ while True:
 
     elif action in ["BLACKLIST","B","BLACK","BL"]:
         viewblacklisting()
-        print()
-        blacklistboard = input("Which board is the thread on? ").lower().strip()
+        blacklistboard = input("\nWhich board is the thread on? ").lower().strip()
         if not blacklistboard:
             print("No board supplied")
             continue
@@ -381,16 +377,15 @@ while True:
         saveconfig()
 
     elif action in ["VIEW","V"]:
-        viewscraping()
-        print()
         viewrequests()
+        print()
+        viewscraping()
         print()
         viewblacklisting()
 
     elif action in ["ADD","A"]:
         viewscraping()
-        print()
-        boardtomodify = input("Which board to add keywords to? ").lower().strip()
+        boardtomodify = input("\nWhich board to add keywords to? ").lower().strip()
         if not boardtomodify:
             print("No board supplied")
             continue
@@ -433,15 +428,14 @@ while True:
             print("Currently not scraping any boards")
             continue
         viewscraping()
-        print()
-        boardtomodify = input("Which board to delete keywords from? ").lower().strip()
+        boardtomodify = input("\nWhich board to delete keywords from? ").lower().strip()
         if not boardtomodify:
             print("No board supplied")
             continue
         if not boardtomodify in configjson["keywords"]:
             print("Currently not scraping /{}/".format(boardtomodify))
             continue
-        keywordstodel=input("Which keywords to stop scraping for? ").lower().split()
+        keywordstodel = input("Which keywords to stop scraping for? ").lower().split()
         keywordstodel = [keyword.replace("_"," ").strip() for keyword in keywordstodel if keyword.replace("_"," ").strip() != ""]
         if not keywordstodel:
             print("No keywords removed for /{}/".format(boardtomodify))
@@ -459,6 +453,17 @@ while True:
             for keyword in configjson["keywords"][boardtomodify][:-1]:
                 print("'{}',".format(keyword),end=" ")
             print("'{}'".format(configjson["keywords"][boardtomodify][-1]))
+        saveconfig()
+
+    elif action in ["MAINTENANCE","M"]:
+        print("Performing maintenance")
+        for board in configjson['keywords']:
+            configjson['keywords'][board] = sorted(configjson['keywords'][board])
+        for board in configjson['blacklistedopnos']:
+            configjson['blacklistedopnos'][board] = sorted(list(set(configjson['blacklistedopnos'][board])),reverse=True)
+        for board in configjson['scrapednos']:
+            configjson['scrapednos'][board] = sorted(list(set(configjson['scrapednos'][board])),reverse=True)
+        print("Maintenance complete")
         saveconfig()
 
     else:
