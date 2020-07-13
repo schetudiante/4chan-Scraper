@@ -13,11 +13,11 @@ glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Geck
 
 def scrape():
     if not configjson["specialrequests"]:
-        print("Currently no special requests\n")
+        print("Currently no special requests")
     else:
         print("~Doing special requests~")
         configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2])=='keep']
-        print()
+    print()
     if not configjson["keywords"]:
         print("Currently not scraping any boards\n")
     else:
