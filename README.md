@@ -15,5 +15,5 @@ The main program to run is `Bateman's 4chan Scraper.py`, written in Python 3.6. 
 - View what keywords are being scraped for, special requests are being made, and blacklisted threads
 - Option to auto-quit once the current scraping session has finished
 - Inbuilt `HELP` command
-- **Automatic:** If a thread or file is not found on 4chan, 4plebs is then searched
+- **Automatic:** If a thread or file is not found on 4chan, and the board is being archived on 4plebs, it is then searched for on 4plebs
 - **Automatic:** Threads are scraped one last time if they are archived
