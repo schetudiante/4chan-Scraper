@@ -3,7 +3,7 @@ import urllib.request   #  getting files from web
 import json             #  dumping config into json format
 import os               #  creating folders
 
-version = '1.1.4beta'
+version = '1.2.0beta'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -299,7 +299,7 @@ else:
 #Main loop
 while True:
     print('\n')
-    action=input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/BLACKLIST/VIEW/ADD/DELETE/HELP/QUIT) ").upper().strip()
+    action=input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/BLACKLIST/VIEW/ADD/DELETE/MAINTENANCE/HELP/QUIT) ").upper().strip()
     print('\n')
 
     if action in ["QUIT","Q"]:
@@ -310,15 +310,16 @@ while True:
         print("The file 'scraperconfig.txt' stores the program's config in the program's directory")
         print("Scraped files are saved in nested directories in the same directory as the program\n")
 
-        print("SCRAPE     /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
-        print("SCRAPEQUIT / SQ: Scrapes then closes the program")
-        print("REQUEST    /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
-        print("BLACKLIST  /  B: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
-        print("VIEW       /  V: View the keywords that are currently being searched for")
-        print("ADD        /  A: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
-        print("DELETE     /  D: Delete keywords to no longer search for")
-        print("HELP       /  H: Shows this help text")
-        print("QUIT       /  Q: Closes the program")
+        print("SCRAPE      /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
+        print("SCRAPEQUIT  / SQ: Scrapes then closes the program")
+        print("REQUEST     /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
+        print("BLACKLIST   /  B: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
+        print("VIEW        /  V: View the keywords that are currently being searched for")
+        print("ADD         /  A: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
+        print("DELETE      /  D: Delete keywords to no longer search for")
+        print("MAINTENANCE /  M: Remove any possible duplicate numbers that have arisen in the config from external editing and reorder in descending order for faster search time")
+        print("HELP        /  H: Shows this help text")
+        print("QUIT        /  Q: Closes the program")
 
     elif action in ["SCRAPE","S"]:
         scrape()
@@ -452,6 +453,13 @@ while True:
             for keyword in configjson["keywords"][boardtomodify][:-1]:
                 print("'{}',".format(keyword),end=" ")
             print("'{}'".format(configjson["keywords"][boardtomodify][-1]))
+        saveconfig()
+
+    elif action in ["MAINTENANCE","M"]:
+        print("Performing maintenance")
+        for board in configjson['scrapednos']:
+            configjson['scrapednos'][board] = sorted(list(set(configjson['scrapednos'][board])),reverse=True)
+        print("Maintenance complete")
         saveconfig()
 
     else:
