@@ -3,7 +3,7 @@ import urllib.request   #  getting files from web
 import json             #  dumping config into json format
 import os               #  creating folders
 
-version = '1.2.0beta'
+version = '1.2.0'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -299,7 +299,7 @@ else:
 #Main loop
 while True:
     print('\n')
-    action=input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/BLACKLIST/VIEW/ADD/DELETE/MAINTENANCE/HELP/QUIT) ").upper().strip()
+    action = input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/BLACKLIST/VIEW/ADD/DELETE/MAINTENANCE/HELP/QUIT) ").upper().strip()
     print('\n')
 
     if action in ["QUIT","Q"]:
@@ -317,7 +317,7 @@ while True:
         print("VIEW        /  V: View the keywords that are currently being searched for")
         print("ADD         /  A: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
         print("DELETE      /  D: Delete keywords to no longer search for")
-        print("MAINTENANCE /  M: Remove any possible duplicate numbers that have arisen in the config from external editing and reorder in descending order for faster search time")
+        print("MAINTENANCE /  M: Remove any possible duplicate numbers that have arisen in the config from external editing and reorder in descending order for faster search time. Keywords are also put into alphabetical order")
         print("HELP        /  H: Shows this help text")
         print("QUIT        /  Q: Closes the program")
 
@@ -435,7 +435,7 @@ while True:
         if not boardtomodify in configjson["keywords"]:
             print("Currently not scraping /{}/".format(boardtomodify))
             continue
-        keywordstodel=input("Which keywords to stop scraping for? ").lower().split()
+        keywordstodel = input("Which keywords to stop scraping for? ").lower().split()
         keywordstodel = [keyword.replace("_"," ").strip() for keyword in keywordstodel if keyword.replace("_"," ").strip() != ""]
         if not keywordstodel:
             print("No keywords removed for /{}/".format(boardtomodify))
@@ -457,6 +457,10 @@ while True:
 
     elif action in ["MAINTENANCE","M"]:
         print("Performing maintenance")
+        for board in configjson['keywords']:
+            configjson['keywords'][board] = sorted(configjson['keywords'][board])
+        for board in configjson['blacklistedopnos']:
+            configjson['blacklistedopnos'][board] = sorted(list(set(configjson['blacklistedopnos'][board])),reverse=True)
         for board in configjson['scrapednos']:
             configjson['scrapednos'][board] = sorted(list(set(configjson['scrapednos'][board])),reverse=True)
         print("Maintenance complete")
