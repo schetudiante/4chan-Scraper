@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.2.0
+- Added MAINTENANCE mode: removes any duplicate numbers that may have been externally inserted into the config
+- Numbers of newly scraped posts are inserted at the beginning of the config list to speed up future searches
+- Changed ordering of VIEW to be consistent with SCRAPE
+
 ## v1.1.3
 - Empty thumbnail folders are now removed
 - Minor appearance change - reduced the number of double-line gaps in console
