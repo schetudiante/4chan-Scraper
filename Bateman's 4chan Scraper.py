@@ -13,15 +13,12 @@ glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Geck
 
 def scrape():
     if not configjson["specialrequests"]:
-        print("Currently no special requests")
-        print()
+        print("Currently no special requests\n")
     else:
-        print("~Doing special requests~")
+        print("~Doing special requests~\n")
         configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2])=='keep']
-        print()
     if not configjson["keywords"]:
-        print("Currently not scraping any boards")
-        print()
+        print("Currently not scraping any boards\n")
     else:
         for boardcode in configjson["keywords"]:
             configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],boardcode in configjson["noarchiveboards"],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
@@ -220,12 +217,12 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             except:
                 print("Error: failed to create folder '{}'".format(threadaddress))
                 return 'keep'
-            imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),'.jpg')
+            imgaddress = "{}\\{}.jpg".format(threadaddress,str(post["no"]))
             if os.path.exists(imgaddress):
                 print("Error: File /{}/:{}:{}:{}(thumb) already exists; please move it".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'keep'
             imgdomain = 'https://i.4pcdn.org/'
-            imgurl = "{}{}/{}s{}".format(imgdomain,boardcode,str(post["tim"]),'.jpg')
+            imgurl = "{}{}/{}s.jpg".format(imgdomain,boardcode,str(post["tim"]))
             urllib.request.urlretrieve(imgurl,imgaddress)
             configjson["scrapednos"][boardcode].append(int(post["no"]))
             return 'success'
@@ -296,8 +293,7 @@ if os.path.exists('scraperconfig.txt'):
 else:
     configjson = newconfigjson
     saveconfig()
-    print()
-    print("Created config file 'scraperconfig.txt'")
+    print("\nCreated config file 'scraperconfig.txt'")
 
 #Main loop
 while True:
@@ -332,8 +328,7 @@ while True:
 
     elif action in ["REQUEST","R"]:
         viewrequests()
-        print()
-        requestboard = input("Which board is the thread on? ").lower().strip()
+        requestboard = input("\nWhich board is the thread on? ").lower().strip()
         if not requestboard:
             print("No board supplied")
             continue
@@ -360,8 +355,7 @@ while True:
 
     elif action in ["BLACKLIST","B","BLACK","BL"]:
         viewblacklisting()
-        print()
-        blacklistboard = input("Which board is the thread on? ").lower().strip()
+        blacklistboard = input("\nWhich board is the thread on? ").lower().strip()
         if not blacklistboard:
             print("No board supplied")
             continue
@@ -381,16 +375,15 @@ while True:
         saveconfig()
 
     elif action in ["VIEW","V"]:
-        viewscraping()
-        print()
         viewrequests()
+        print()
+        viewscraping()
         print()
         viewblacklisting()
 
     elif action in ["ADD","A"]:
         viewscraping()
-        print()
-        boardtomodify = input("Which board to add keywords to? ").lower().strip()
+        boardtomodify = input("\nWhich board to add keywords to? ").lower().strip()
         if not boardtomodify:
             print("No board supplied")
             continue
@@ -433,8 +426,7 @@ while True:
             print("Currently not scraping any boards")
             continue
         viewscraping()
-        print()
-        boardtomodify = input("Which board to delete keywords from? ").lower().strip()
+        boardtomodify = input("\nWhich board to delete keywords from? ").lower().strip()
         if not boardtomodify:
             print("No board supplied")
             continue
