@@ -1,5 +1,5 @@
 import urllib.request   #  getting files from web
-import json             #  dumping config into json format
+import json             #  config file json to and from dictionary
 import os               #  creating folders
 
 version = '1.2.2beta'
