@@ -1,9 +1,8 @@
-from io import BytesIO  #  reading + writing to config file
 import urllib.request   #  getting files from web
 import json             #  dumping config into json format
 import os               #  creating folders
 
-version = '1.2.1'
+version = '1.2.2beta'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
