@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.2.1
+- Maintenance is now also done automatically at the end of scraping
+
 ## v1.2.0
 - Added MAINTENANCE mode: removes any duplicate numbers that may have been externally inserted into the config
 - Numbers of newly scraped posts are inserted at the beginning of the config list to speed up future searches
