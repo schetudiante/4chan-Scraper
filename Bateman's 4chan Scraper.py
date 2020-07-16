@@ -3,7 +3,7 @@ import urllib.request   #  getting files from web
 import json             #  dumping config into json format
 import os               #  creating folders
 
-version = '1.2.0'
+version = '1.2.1'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -24,9 +24,10 @@ def scrape():
         for boardcode in configjson["keywords"]:
             configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],boardcode in configjson["noarchiveboards"],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
             print()
-    print("~Updating log~")
+    maintenance()
+    print("~Updating config~")
     saveconfig()
-    print("~Log updated~")
+    print("~Config updated~")
     print("~Done scraping~")
 
 ################################################################################
@@ -274,6 +275,18 @@ def viewblacklisting():
 
 ################################################################################
 
+def maintenance():
+    print("~Performing maintenance~")
+    for board in configjson['keywords']:
+        configjson['keywords'][board] = sorted(configjson['keywords'][board])
+    for board in configjson['blacklistedopnos']:
+        configjson['blacklistedopnos'][board] = sorted(list(set(configjson['blacklistedopnos'][board])),reverse=True)
+    for board in configjson['scrapednos']:
+        configjson['scrapednos'][board] = sorted(list(set(configjson['scrapednos'][board])),reverse=True)
+    print("~Maintenance complete~")
+
+################################################################################
+
 def saveconfig():
     with open('scraperconfig.txt','w') as configjson_file:
         configjson_file.write(json.dumps(configjson))
@@ -456,14 +469,7 @@ while True:
         saveconfig()
 
     elif action in ["MAINTENANCE","M"]:
-        print("Performing maintenance")
-        for board in configjson['keywords']:
-            configjson['keywords'][board] = sorted(configjson['keywords'][board])
-        for board in configjson['blacklistedopnos']:
-            configjson['blacklistedopnos'][board] = sorted(list(set(configjson['blacklistedopnos'][board])),reverse=True)
-        for board in configjson['scrapednos']:
-            configjson['scrapednos'][board] = sorted(list(set(configjson['scrapednos'][board])),reverse=True)
-        print("Maintenance complete")
+        maintenance()
         saveconfig()
 
     else:
