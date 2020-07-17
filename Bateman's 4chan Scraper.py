@@ -293,187 +293,186 @@ def saveconfig():
 
 ################################################################################
 
-#Main part of the program
+if __name__ == '__main__':
+    print('~~~~~~~~~~~~~~~~~~~~~~~')
+    print('BATEMAN\'S 4CHAN SCRAPER')
+    print('~~~~~~~~~~~~~~~~~~~~~~~')
+    print('~~~~~Version {}~~~~~'.format(version))
 
-print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('BATEMAN\'S 4CHAN SCRAPER')
-print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version {}~~~~~'.format(version))
-
-#Load or create config JSON
-if os.path.exists('scraperconfig.txt'):
-    with open('scraperconfig.txt') as configjson_file:
-        configjson = json.load(configjson_file)
-else:
-    configjson = newconfigjson
-    saveconfig()
-    print("\nCreated config file 'scraperconfig.txt'")
-
-#Main loop
-while True:
-    print('\n')
-    action = input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/BLACKLIST/VIEW/ADD/DELETE/MAINTENANCE/HELP/QUIT) ").upper().strip()
-    print('\n')
-
-    if action in ["QUIT","Q"]:
-        break
-
-    elif action in ["HELP","H"]:
-        print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made. 4plebs is also sourced")
-        print("The file 'scraperconfig.txt' stores the program's config in the program's directory")
-        print("Scraped files are saved in nested directories in the same directory as the program\n")
-
-        print("SCRAPE      /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
-        print("SCRAPEQUIT  / SQ: Scrapes then closes the program")
-        print("REQUEST     /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
-        print("BLACKLIST   /  B: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
-        print("VIEW        /  V: View the keywords that are currently being searched for")
-        print("ADD         /  A: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
-        print("DELETE      /  D: Delete keywords to no longer search for")
-        print("MAINTENANCE /  M: Remove any possible duplicate numbers that have arisen in the config from external editing and reorder in descending order for faster search time. Keywords are also put into alphabetical order")
-        print("HELP        /  H: Shows this help text")
-        print("QUIT        /  Q: Closes the program")
-
-    elif action in ["SCRAPE","S"]:
-        scrape()
-
-    elif action in ["SCRAPEQUIT","SQ"]:
-        scrape()
-        break
-
-    elif action in ["REQUEST","R"]:
-        viewrequests()
-        requestboard = input("\nWhich board is the thread on? ").lower().strip()
-        if not requestboard:
-            print("No board supplied")
-            continue
-        try:
-            requestopno = int(input("What is the OP number of the requested thread? ").strip())
-        except:
-            print("Error: Invalid number")
-            continue
-        alreadyreq = [req for req in configjson['specialrequests'] if [req[0],req[1]] == [requestboard,requestopno]]
-        if alreadyreq:
-            for req in alreadyreq:
-                configjson["specialrequests"].remove(req)
-                print("Thread /{}/:{}:{} removed from special requests".format(req[0],str(req[1]),req[2]))
-        else:
-            requestkeyword = input("What keyword(s) to tag folder with? ").lower().replace("_"," ").strip()
-            if not requestkeyword:
-                requestkeyword = "request"
-            if not requestboard in configjson["scrapednos"]:
-                configjson["scrapednos"][requestboard]=[]
-            if not [requestboard,requestopno,requestkeyword] in configjson["specialrequests"]:
-                configjson["specialrequests"].append([requestboard,requestopno,requestkeyword])
-                print("Thread /{}/:{}:{} added to special requests".format(requestboard,str(requestopno),requestkeyword))
+    #Load or create config JSON
+    if os.path.exists('scraperconfig.txt'):
+        with open('scraperconfig.txt') as configjson_file:
+            configjson = json.load(configjson_file)
+    else:
+        configjson = newconfigjson
         saveconfig()
+        print("\nCreated config file 'scraperconfig.txt'")
 
-    elif action in ["BLACKLIST","B","BLACK","BL"]:
-        viewblacklisting()
-        blacklistboard = input("\nWhich board is the thread on? ").lower().strip()
-        if not blacklistboard:
-            print("No board supplied")
-            continue
-        try:
-            blacklistopno = int(input("What is the OP number of the thread to blacklist? ").strip())
-        except:
-            print("Error: Invalid number")
-            continue
-        if not blacklistboard in configjson["blacklistedopnos"]:
-            configjson["blacklistedopnos"][blacklistboard]=[]
-        if not blacklistopno in configjson["blacklistedopnos"][blacklistboard]:
-            configjson["blacklistedopnos"][blacklistboard].append(blacklistopno)
-            print("Now blacklisting /{}/:{}".format(blacklistboard,str(blacklistopno)))
-        else:
-            configjson["blacklistedopnos"][blacklistboard].remove(blacklistopno)
-            print("No longer blacklisting /{}/:{}".format(blacklistboard,str(blacklistopno)))
-        saveconfig()
+    #Main loop
+    while True:
+        print('\n')
+        action = input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/BLACKLIST/VIEW/ADD/DELETE/MAINTENANCE/HELP/QUIT) ").upper().strip()
+        print('\n')
 
-    elif action in ["VIEW","V"]:
-        viewrequests()
-        print()
-        viewscraping()
-        print()
-        viewblacklisting()
+        if action in ["QUIT","Q"]:
+            break
 
-    elif action in ["ADD","A"]:
-        viewscraping()
-        boardtomodify = input("\nWhich board to add keywords to? ").lower().strip()
-        if not boardtomodify:
-            print("No board supplied")
-            continue
-        if not boardtomodify in configjson["keywords"]:
-            boardtomodifyarchive = input("Does /{}/ have an archive? (Y/N) ".format(boardtomodify)).upper().strip()
-            if not boardtomodifyarchive in ["Y","N"]:
-                print("Error: Expected Y or N")
+        elif action in ["HELP","H"]:
+            print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made. 4plebs is also sourced")
+            print("The file 'scraperconfig.txt' stores the program's config in the program's directory")
+            print("Scraped files are saved in nested directories in the same directory as the program\n")
+
+            print("SCRAPE      /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
+            print("SCRAPEQUIT  / SQ: Scrapes then closes the program")
+            print("REQUEST     /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
+            print("BLACKLIST   /  B: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
+            print("VIEW        /  V: View the keywords that are currently being searched for")
+            print("ADD         /  A: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
+            print("DELETE      /  D: Delete keywords to no longer search for")
+            print("MAINTENANCE /  M: Remove any possible duplicate numbers that have arisen in the config from external editing and reorder in descending order for faster search time. Keywords are also put into alphabetical order")
+            print("HELP        /  H: Shows this help text")
+            print("QUIT        /  Q: Closes the program")
+
+        elif action in ["SCRAPE","S"]:
+            scrape()
+
+        elif action in ["SCRAPEQUIT","SQ"]:
+            scrape()
+            break
+
+        elif action in ["REQUEST","R"]:
+            viewrequests()
+            requestboard = input("\nWhich board is the thread on? ").lower().strip()
+            if not requestboard:
+                print("No board supplied")
                 continue
-        else:
-            boardtomodifyarchive = "OLD"
-        keywordstoadd = input("Which keywords to start scraping for? ").lower().split()
-        keywordstoadd = [keyword.replace("_"," ").strip() for keyword in keywordstoadd if keyword.replace("_"," ").strip() != ""]
-        if not keywordstoadd:
-            if boardtomodify in configjson["keywords"]:
-                print("No more keywords added for /{}/".format(boardtomodify))
+            try:
+                requestopno = int(input("What is the OP number of the requested thread? ").strip())
+            except:
+                print("Error: Invalid number")
+                continue
+            alreadyreq = [req for req in configjson['specialrequests'] if [req[0],req[1]] == [requestboard,requestopno]]
+            if alreadyreq:
+                for req in alreadyreq:
+                    configjson["specialrequests"].remove(req)
+                    print("Thread /{}/:{}:{} removed from special requests".format(req[0],str(req[1]),req[2]))
             else:
-                print("No keywords added for /{}/, not scraping it".format(boardtomodify))
-            continue
-        if not boardtomodify in configjson["keywords"]:
-            configjson["keywords"][boardtomodify]=[]
-        if boardtomodifyarchive == "N":
-            configjson["noarchiveboards"].append(boardtomodify)
-        if not boardtomodify in configjson["lastscrapeops"]:
-            configjson["lastscrapeops"][boardtomodify]=[]
-        if not boardtomodify in configjson["blacklistedopnos"]:
-            configjson["blacklistedopnos"][boardtomodify]=[]
-        if not boardtomodify in configjson["scrapednos"]:
-            configjson["scrapednos"][boardtomodify]=[]
-        for keyword in keywordstoadd:
-            if not keyword in configjson["keywords"][boardtomodify]:
-                configjson["keywords"][boardtomodify].append(keyword)
-        print("Keywords for /{}/ updated to:".format(boardtomodify),end=" ")
-        for keyword in configjson["keywords"][boardtomodify][:-1]:
-            print("'{}',".format(keyword),end=" ")
-        print("'{}'".format(configjson["keywords"][boardtomodify][-1]))
-        saveconfig()
+                requestkeyword = input("What keyword(s) to tag folder with? ").lower().replace("_"," ").strip()
+                if not requestkeyword:
+                    requestkeyword = "request"
+                if not requestboard in configjson["scrapednos"]:
+                    configjson["scrapednos"][requestboard]=[]
+                if not [requestboard,requestopno,requestkeyword] in configjson["specialrequests"]:
+                    configjson["specialrequests"].append([requestboard,requestopno,requestkeyword])
+                    print("Thread /{}/:{}:{} added to special requests".format(requestboard,str(requestopno),requestkeyword))
+            saveconfig()
 
-    elif action in ["DELETE","DEL","D"]:
-        if not configjson["keywords"]:
-            print("Currently not scraping any boards")
-            continue
-        viewscraping()
-        boardtomodify = input("\nWhich board to delete keywords from? ").lower().strip()
-        if not boardtomodify:
-            print("No board supplied")
-            continue
-        if not boardtomodify in configjson["keywords"]:
-            print("Currently not scraping /{}/".format(boardtomodify))
-            continue
-        keywordstodel = input("Which keywords to stop scraping for? ").lower().split()
-        keywordstodel = [keyword.replace("_"," ").strip() for keyword in keywordstodel if keyword.replace("_"," ").strip() != ""]
-        if not keywordstodel:
-            print("No keywords removed for /{}/".format(boardtomodify))
-            continue
-        for keyword in keywordstodel:
-            if keyword in configjson["keywords"][boardtomodify]:
-                configjson["keywords"][boardtomodify].remove(keyword)
-        if not configjson["keywords"][boardtomodify]:
-            print("Stopped scraping /{}/".format(boardtomodify))
-            del configjson["keywords"][boardtomodify]
-            if boardtomodify in configjson["noarchiveboards"]:
-                configjson["noarchiveboards"].remove(boardtomodify)
-        else:
+        elif action in ["BLACKLIST","B","BLACK","BL"]:
+            viewblacklisting()
+            blacklistboard = input("\nWhich board is the thread on? ").lower().strip()
+            if not blacklistboard:
+                print("No board supplied")
+                continue
+            try:
+                blacklistopno = int(input("What is the OP number of the thread to blacklist? ").strip())
+            except:
+                print("Error: Invalid number")
+                continue
+            if not blacklistboard in configjson["blacklistedopnos"]:
+                configjson["blacklistedopnos"][blacklistboard]=[]
+            if not blacklistopno in configjson["blacklistedopnos"][blacklistboard]:
+                configjson["blacklistedopnos"][blacklistboard].append(blacklistopno)
+                print("Now blacklisting /{}/:{}".format(blacklistboard,str(blacklistopno)))
+            else:
+                configjson["blacklistedopnos"][blacklistboard].remove(blacklistopno)
+                print("No longer blacklisting /{}/:{}".format(blacklistboard,str(blacklistopno)))
+            saveconfig()
+
+        elif action in ["VIEW","V"]:
+            viewrequests()
+            print()
+            viewscraping()
+            print()
+            viewblacklisting()
+
+        elif action in ["ADD","A"]:
+            viewscraping()
+            boardtomodify = input("\nWhich board to add keywords to? ").lower().strip()
+            if not boardtomodify:
+                print("No board supplied")
+                continue
+            if not boardtomodify in configjson["keywords"]:
+                boardtomodifyarchive = input("Does /{}/ have an archive? (Y/N) ".format(boardtomodify)).upper().strip()
+                if not boardtomodifyarchive in ["Y","N"]:
+                    print("Error: Expected Y or N")
+                    continue
+            else:
+                boardtomodifyarchive = "OLD"
+            keywordstoadd = input("Which keywords to start scraping for? ").lower().split()
+            keywordstoadd = [keyword.replace("_"," ").strip() for keyword in keywordstoadd if keyword.replace("_"," ").strip() != ""]
+            if not keywordstoadd:
+                if boardtomodify in configjson["keywords"]:
+                    print("No more keywords added for /{}/".format(boardtomodify))
+                else:
+                    print("No keywords added for /{}/, not scraping it".format(boardtomodify))
+                continue
+            if not boardtomodify in configjson["keywords"]:
+                configjson["keywords"][boardtomodify]=[]
+            if boardtomodifyarchive == "N":
+                configjson["noarchiveboards"].append(boardtomodify)
+            if not boardtomodify in configjson["lastscrapeops"]:
+                configjson["lastscrapeops"][boardtomodify]=[]
+            if not boardtomodify in configjson["blacklistedopnos"]:
+                configjson["blacklistedopnos"][boardtomodify]=[]
+            if not boardtomodify in configjson["scrapednos"]:
+                configjson["scrapednos"][boardtomodify]=[]
+            for keyword in keywordstoadd:
+                if not keyword in configjson["keywords"][boardtomodify]:
+                    configjson["keywords"][boardtomodify].append(keyword)
             print("Keywords for /{}/ updated to:".format(boardtomodify),end=" ")
             for keyword in configjson["keywords"][boardtomodify][:-1]:
                 print("'{}',".format(keyword),end=" ")
             print("'{}'".format(configjson["keywords"][boardtomodify][-1]))
-        saveconfig()
+            saveconfig()
 
-    elif action in ["MAINTENANCE","M"]:
-        maintenance()
-        saveconfig()
+        elif action in ["DELETE","DEL","D"]:
+            if not configjson["keywords"]:
+                print("Currently not scraping any boards")
+                continue
+            viewscraping()
+            boardtomodify = input("\nWhich board to delete keywords from? ").lower().strip()
+            if not boardtomodify:
+                print("No board supplied")
+                continue
+            if not boardtomodify in configjson["keywords"]:
+                print("Currently not scraping /{}/".format(boardtomodify))
+                continue
+            keywordstodel = input("Which keywords to stop scraping for? ").lower().split()
+            keywordstodel = [keyword.replace("_"," ").strip() for keyword in keywordstodel if keyword.replace("_"," ").strip() != ""]
+            if not keywordstodel:
+                print("No keywords removed for /{}/".format(boardtomodify))
+                continue
+            for keyword in keywordstodel:
+                if keyword in configjson["keywords"][boardtomodify]:
+                    configjson["keywords"][boardtomodify].remove(keyword)
+            if not configjson["keywords"][boardtomodify]:
+                print("Stopped scraping /{}/".format(boardtomodify))
+                del configjson["keywords"][boardtomodify]
+                if boardtomodify in configjson["noarchiveboards"]:
+                    configjson["noarchiveboards"].remove(boardtomodify)
+            else:
+                print("Keywords for /{}/ updated to:".format(boardtomodify),end=" ")
+                for keyword in configjson["keywords"][boardtomodify][:-1]:
+                    print("'{}',".format(keyword),end=" ")
+                print("'{}'".format(configjson["keywords"][boardtomodify][-1]))
+            saveconfig()
 
-    else:
-        print("Unknown command")
+        elif action in ["MAINTENANCE","M"]:
+            maintenance()
+            saveconfig()
+
+        else:
+            print("Unknown command")
 
 ################################################################################
 
