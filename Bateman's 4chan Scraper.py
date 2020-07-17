@@ -1,7 +1,8 @@
-import urllib.request   #  getting files from web
-import json             #  config file json to and from dictionary
-import os               #  creating folders
-import spincursor as sc #  spinning cursor messages (custom path file, testing beta, moving to progress bars)
+import urllib.request   #   getting files from web
+import json             #   config file json to and from dictionary
+import os               #   creating folders
+import threading        #   multiple simultaneous downloads
+import queue            #   queueing for simultaneous downloads
 
 version = '1.3.0beta'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
