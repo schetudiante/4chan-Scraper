@@ -1,8 +1,9 @@
 import urllib.request   #  getting files from web
 import json             #  config file json to and from dictionary
 import os               #  creating folders
+import spincursor as sc #  spinning cursor messages (custom path file, testing beta, moving to progress bars)
 
-version = '1.2.2beta'
+version = '1.3.0beta'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
