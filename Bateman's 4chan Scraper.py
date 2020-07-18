@@ -3,12 +3,12 @@ import json             #   config file json to and from dictionary
 import os               #   creating folders
 import threading        #   multiple simultaneous downloads
 
-version = '1.3.0beta'
+version = '1.3.0'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
-num_download_threads = 12
+num_download_threads = 8
 
 ################################################################################
 
