@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.3.0
+- Downloading of files is now multithreaded, by default up to 8 downloads at a time
+
 ## v1.2.1
 - Maintenance is now also done automatically at the end of scraping
 
