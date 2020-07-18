@@ -2,13 +2,13 @@ import urllib.request   #   getting files from web
 import json             #   config file json to and from dictionary
 import os               #   creating folders
 import threading        #   multiple simultaneous downloads
-import queue            #   queueing for simultaneous downloads
 
 version = '1.3.0beta'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
+num_download_threads = 12
 
 ################################################################################
 
@@ -89,20 +89,44 @@ def scrapethread(boardcode,threadopno,keyword):
         return 'keep'
 
     #Scrape files
-    keepflag = 0
     print("Scraping /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
-    for post in impostslist:
-        if int(post["no"]) in configjson["scrapednos"][boardcode]:
-            continue
-        for modus in ['4chan','4plebs','4plebsthumbs'][imstart:]:
-            result = scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword)
-            if result == 'success':
-                break
-            elif result == 'keep':
-                keepflag = 1
-                break
-            elif result == 'try_next_modus':
-                continue
+    keepflag = 0
+    lock = threading.Lock()
+    postbuffers = [[] for i in range(num_download_threads)]
+    def scrapefile_download_thread(dtid):
+        while True:
+            with lock:
+                try:
+                    postbuffers[dtid] = impostslist.pop(0)
+                    if int(postbuffers[dtid]["no"]) in configjson["scrapednos"][boardcode]:
+                        continue
+                except:
+                    return
+            for modus in ['4chan','4plebs','4plebsthumbs'][imstart:]:
+                if modus == '4plebsthumbs':
+                    with lock:
+                        try:
+                            os.makedirs('{}\\thumbs'.format(threadaddress),exist_ok=True)
+                        except:
+                            print("Error: failed to create folder '{}\\thumbs'".format(threadaddress))
+                            keepflag = 1
+                            break
+                result = scrapefile(threadaddress,postbuffers[dtid],modus,boardcode,threadopno,keyword)
+                with lock:
+                    if result == 'success':
+                        configjson["scrapednos"][boardcode].insert(0,int(postbuffers[dtid]["no"]))
+                        break
+                    elif result == 'keep':
+                        keepflag = 1
+                        break
+                    elif result == 'try_next_modus':
+                        continue
+
+    download_threads = [threading.Thread(target=scrapefile_download_thread,args=[i]) for i in range(num_download_threads)]
+    for t in download_threads:
+        t.start()
+    for t in download_threads:
+        t.join()
 
     #Delete empty folder (or / and thumbs subfolder)
     if 'thumbs' in os.listdir(threadaddress) and not [f for f in os.listdir('{}\\thumbs'.format(threadaddress))]:
@@ -183,7 +207,6 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             imgdomain = 'https://i.4cdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             urllib.request.urlretrieve(imgurl,imgaddress)
-            configjson["scrapednos"][boardcode].insert(0,int(post["no"]))
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code == 404:
@@ -202,7 +225,6 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             urllib.request.urlretrieve(imgurl,imgaddress)
-            configjson["scrapednos"][boardcode].insert(0,int(post["no"]))
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']:
@@ -215,11 +237,6 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
     elif modus == '4plebsthumbs':
         try:
             threadaddress = '{}\\thumbs'.format(threadaddress)
-            try:
-                os.makedirs(threadaddress,exist_ok=True)
-            except:
-                print("Error: failed to create folder '{}'".format(threadaddress))
-                return 'keep'
             imgaddress = "{}\\{}.jpg".format(threadaddress,str(post["no"]))
             if os.path.exists(imgaddress):
                 print("Error: File /{}/:{}:{}:{}(thumb) already exists; please move it".format(boardcode,threadopno,keyword,str(post["no"])))
@@ -227,7 +244,6 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}s.jpg".format(imgdomain,boardcode,str(post["tim"]))
             urllib.request.urlretrieve(imgurl,imgaddress)
-            configjson["scrapednos"][boardcode].insert(0,int(post["no"]))
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']:
