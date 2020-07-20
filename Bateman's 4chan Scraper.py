@@ -3,7 +3,7 @@ import json             #   config file json to and from dictionary
 import os               #   creating folders
 import threading        #   multiple simultaneous downloads
 
-version = '1.3.0'
+version = '1.3.1beta'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -264,7 +264,7 @@ def viewscraping():
             print("/{}/:".format(board),end=" ")
             for keyword in configjson["keywords"][board][:-1]:
                 print("'{}',".format(keyword),end=" ")
-            print("'{}'".format(configjson["keywords"][board][-1]))
+            print("\'{}\'".format(configjson["keywords"][board][-1]))
 
 ################################################################################
 
