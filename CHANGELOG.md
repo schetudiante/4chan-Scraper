@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.4.0
+- Added progress bar and counter when scraping a thread
+
 ## v1.3.0
 - Downloading of files is now multithreaded, by default up to 8 downloads at a time
 
