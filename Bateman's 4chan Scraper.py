@@ -2,8 +2,9 @@ import urllib.request   #   getting files from web
 import json             #   config file json to and from dictionary
 import os               #   creating folders
 import threading        #   multiple simultaneous downloads
+import jbprogressmsg    #   progress bar
 
-version = '1.3.1beta'
+version = '1.4.0beta'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -71,6 +72,7 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
 ################################################################################
 
 def scrapethread(boardcode,threadopno,keyword):
+    global lock
     filelist = getfilelist(boardcode,threadopno,keyword,'4chan')
     imstart = 0
     if filelist[0] in ['try_4plebs']:
@@ -89,9 +91,9 @@ def scrapethread(boardcode,threadopno,keyword):
         return 'keep'
 
     #Scrape files
-    print("Scraping /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
+    jbprogressmsg.progmsg(msg="Scraping /{}/:{}:{}".format(boardcode,str(threadopno),keyword),of=len(impostslist))
     keepflag = 0
-    lock = threading.Lock()
+
     postbuffers = [[] for i in range(num_download_threads)]
     def scrapefile_download_thread(dtid):
         while True:
@@ -108,7 +110,7 @@ def scrapethread(boardcode,threadopno,keyword):
                         try:
                             os.makedirs('{}\\thumbs'.format(threadaddress),exist_ok=True)
                         except:
-                            print("Error: failed to create folder '{}\\thumbs'".format(threadaddress))
+                            jbprogressmsg.progmsg("Error: failed to create folder '{}\\thumbs'".format(threadaddress),tick=True)
                             keepflag = 1
                             break
                 result = scrapefile(threadaddress,postbuffers[dtid],modus,boardcode,threadopno,keyword)
@@ -202,7 +204,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
         try:
             imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
             if os.path.exists(imgaddress):
-                print("Error: File /{}/:{}:{}:{} already exists; please move it".format(boardcode,threadopno,keyword,str(post["no"])))
+                jbprogressmsg.progmsg("Error: File /{}/:{}:{}:{} already exists; please move it".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'keep'
             imgdomain = 'https://i.4cdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
@@ -309,6 +311,8 @@ def saveconfig():
         configjson_file.write(json.dumps(configjson))
 
 ################################################################################
+
+lock = threading.Lock()
 
 if __name__ == '__main__':
     print('~~~~~~~~~~~~~~~~~~~~~~~')
