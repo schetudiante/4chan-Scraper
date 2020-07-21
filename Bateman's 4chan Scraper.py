@@ -327,9 +327,9 @@ def saveconfig():
 
 class class_progressmsg():
     def __init__(self):
-        self.resetglobals()
+        self.resetvars()
 
-    def resetglobals(self):
+    def resetvars(self):
         self.msg = ""
         self.pos = 0
         self.of = 1
@@ -375,7 +375,7 @@ class class_progressmsg():
         if self.active:
             stdout.write('\n')
             stdout.flush()
-        self.resetglobals()
+        self.resetvars()
 
 ################################################################################
 
