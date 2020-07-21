@@ -9,6 +9,7 @@ The main program to run is `Bateman's 4chan Scraper.py`, written in Python 3.6. 
 ### Features
 
 - Scrape threads with minimal effort
+- Progress bar to show scraping progress
 - Add and remove boards with their own set of keywords to scrape for
 - Make special requests to scrape custom threads 
 - Blacklist threads to not scrape
