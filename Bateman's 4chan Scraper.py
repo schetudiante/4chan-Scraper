@@ -91,7 +91,7 @@ def scrapethread(boardcode,threadopno,keyword):
         return 'keep'
 
     #Scrape files
-    jbprogressmsg.progmsg(msg="Scraping /{}/:{}:{}".format(boardcode,str(threadopno),keyword),of=len(impostslist))
+    jbprogressmsg.progmsg(msg="Scraping /{}/:{}:{} ".format(boardcode,str(threadopno),keyword),of=len(impostslist))
     keepflag = 0
 
     postbuffers = [[] for i in range(num_download_threads)]
@@ -110,13 +110,14 @@ def scrapethread(boardcode,threadopno,keyword):
                         try:
                             os.makedirs('{}\\thumbs'.format(threadaddress),exist_ok=True)
                         except:
-                            jbprogressmsg.progmsg("Error: failed to create folder '{}\\thumbs'".format(threadaddress),tick=True)
+                            jbprogressmsg.progmsg(msg="Error: failed to create folder \'{}\\thumbs\' ".format(threadaddress))
                             keepflag = 1
                             break
                 result = scrapefile(threadaddress,postbuffers[dtid],modus,boardcode,threadopno,keyword)
                 with lock:
                     if result == 'success':
                         configjson["scrapednos"][boardcode].insert(0,int(postbuffers[dtid]["no"]))
+                        jbprogressmsg.tick()
                         break
                     elif result == 'keep':
                         keepflag = 1
@@ -129,6 +130,7 @@ def scrapethread(boardcode,threadopno,keyword):
         t.start()
     for t in download_threads:
         t.join()
+    jbprogressmsg.finish()
 
     #Delete empty folder (or / and thumbs subfolder)
     if 'thumbs' in os.listdir(threadaddress) and not [f for f in os.listdir('{}\\thumbs'.format(threadaddress))]:
@@ -204,7 +206,8 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
         try:
             imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
             if os.path.exists(imgaddress):
-                jbprogressmsg.progmsg("Error: File /{}/:{}:{}:{} already exists; please move it".format(boardcode,threadopno,keyword,str(post["no"])))
+                with lock:
+                    jbprogressmsg.progmsg(msg="Error: File /{}/:{}:{}:{} already exists; please move it ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'keep'
             imgdomain = 'https://i.4cdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
@@ -212,17 +215,20 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code == 404:
-                print("File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file".format(boardcode,threadopno,keyword,str(post["no"])))
+                with lock:
+                    jbprogressmsg.progmsg(msg="File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'try_next_modus'
             else:
-                print("Error: Cannot load 4chan file /{}/:{}:{}:{}".format(boardcode,threadopno,keyword,str(post["no"])))
+                with lock:
+                    jbprogressmsg.progmsg(msg="Error: Cannot load 4chan file /{}/:{}:{}:{} ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'keep'
 
     elif modus == '4plebs':
         try:
             imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
             if os.path.exists(imgaddress):
-                print("Error: File /{}/:{}:{}:{} already exists; please move it".format(boardcode,threadopno,keyword,str(post["no"])))
+                with lock:
+                    jbprogressmsg.progmsg(msg="Error: File /{}/:{}:{}:{} already exists; please move it ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'keep'
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
@@ -230,10 +236,12 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']:
-                print("File /{}/:{}:{}:{} not found on 4plebs, scraping 4plebs thumbnail".format(boardcode,threadopno,keyword,str(post["no"])))
+                with lock:
+                    jbprogressmsg.progmsg(msg="File /{}/:{}:{}:{} not found on 4plebs, scraping 4plebs thumbnail ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'try_next_modus'
             else:
-                print("Error: Cannot load 4plebs file /{}/:{}:{}:{}".format(boardcode,threadopno,keyword,str(post["no"])))
+                with lock:
+                    jbprogressmsg.progmsg(msg="Error: Cannot load 4plebs file /{}/:{}:{}:{} ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'keep'
 
     elif modus == '4plebsthumbs':
@@ -241,7 +249,8 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             threadaddress = '{}\\thumbs'.format(threadaddress)
             imgaddress = "{}\\{}.jpg".format(threadaddress,str(post["no"]))
             if os.path.exists(imgaddress):
-                print("Error: File /{}/:{}:{}:{}(thumb) already exists; please move it".format(boardcode,threadopno,keyword,str(post["no"])))
+                with lock:
+                    jbprogressmsg.progmsg(msg="Error: File /{}/:{}:{}:{}(thumb) already exists; please move it ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'keep'
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}s.jpg".format(imgdomain,boardcode,str(post["tim"]))
@@ -249,10 +258,12 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']:
-                print("File /{}/:{}:{}:{}(thumb) not found on 4plebs".format(boardcode,threadopno,keyword,str(post["no"])))
+                with lock:
+                    jbprogressmsg.progmsg(msg="File /{}/:{}:{}:{}(thumb) not found on 4plebs ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'success'
             else:
-                print("Error: Cannot load 4plebs file /{}/:{}:{}:{}(thumb)".format(boardcode,threadopno,keyword,str(post["no"])))
+                with lock:
+                    jbprogressmsg.progmsg(msg="Error: Cannot load 4plebs file /{}/:{}:{}:{}(thumb) ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'keep'
 
 ################################################################################

@@ -1,11 +1,13 @@
 from sys import stdout
 from math import floor
 
-msg = ""
-pos = 0
-of = 10
-bsnum = 0
-active = False
+def resetglobals():
+    global msg,pos,of,bsnum,active
+    msg = ""
+    pos = 0
+    of = 1
+    bsnum = 0
+    active = False
 
 def progmsg(*args,**kwargs):
     global msg, pos, of, active
@@ -18,18 +20,18 @@ def progmsg(*args,**kwargs):
     if active == True:
         stdout.write('\n')
         stdout.flush()
-    printmsg()
-    printprog()
+    _printmsg()
+    _printprog()
     active = True
     if 'tick' in kwargs:
         tick()
 
-def printmsg():
+def _printmsg():
     global msg
     stdout.write(msg)
     stdout.flush()
 
-def printprog():
+def _printprog():
     global pos, of, bsnum
     hashund = ('#'*floor(10*(pos/of))).ljust(10,'_')
     prog = '[{}] ({}/{})'.format(hashund,pos,of)
@@ -38,27 +40,29 @@ def printprog():
     stdout.flush()
 
 def tick():
-    global pos, of, bsnum, active
+    global pos, of, bsnum
     pos+=1
     stdout.write('\b'*bsnum)
     stdout.flush()
-    printprog()
+    _printprog()
     if pos == of:
-        stdout.write('\n')
-        stdout.flush()
-        active = False
+        finish()
 
 def finish():
     global active
     if active:
         stdout.write('\n')
         stdout.flush()
-        active = False
+    resetglobals()
+
+################################################################################
+
+#When Module Loaded
+resetglobals()
 
 ################################################################################
 
 #Debug Example
-
 if __name__ == '__main__':
     from time import sleep
     progmsg(msg='Doing shit ',of=20)
@@ -70,9 +74,11 @@ if __name__ == '__main__':
     for i in range(5):
         sleep(0.5)
         tick()
-    finish()
-    finish()
-    # for i in range(10):
-    #     sleep(0.5)
-    #     progmsg(msg='Error',tick=True)
+    # finish()
+    # finish()
+    for i in range(10):
+        sleep(0.5)
+        progmsg(msg='Already done ',tick=True)
     input('End is here')
+
+################################################################################
