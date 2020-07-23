@@ -5,12 +5,12 @@ import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from math import floor  #   for progress bar
 
-version = '1.4.0'
+version = '1.4.1beta'
 newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
-num_download_threads = 8
+num_download_threads = 4
 
 ################################################################################
 
@@ -43,7 +43,8 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
         catalogjson_url = ("https://a.4cdn.org/{}/catalog.json".format(boardcode))
         catalogjson_file = urllib.request.urlopen(catalogjson_url)
         catalogjson = json.load(catalogjson_file)
-        #Search each thread for keywords
+        #Search each thread for keywords and append to list for scraping
+        threadstoscrape = []
         for page in catalogjson:
             for threadop in page["threads"]:
                 if not threadop["no"] in blacklist:
@@ -52,12 +53,15 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
                     for boxtocheck in boxestocheck:
                         for keyword in keywords:
                             if keyword in threadop[boxtocheck].lower():
-                                if scrapethread(boardcode,threadop["no"],keyword) == 'keep':
-                                    scrapedactiveops.insert(0,[threadop["no"],keyword])
+                                threadstoscrape.append([threadop["no"],keyword])
                                 boxbreak=1
                                 break
                         if boxbreak==1:
                             break
+        #Actually do the scraping now
+        for threadtoscrape in threadstoscrape:
+            if scrapethread(boardcode,threadtoscrape[0],threadtoscrape[1]) == 'keep':
+                scrapedactiveops.insert(0,[threadop["no"],keyword])
     except:
         print("Error: Cannot load catalog for /{}/".format(boardcode))
 
@@ -97,6 +101,7 @@ def scrapethread(boardcode,threadopno,keyword):
 
     postbuffers = [[] for i in range(num_download_threads)]
     def scrapefile_download_thread(dtid):
+        nonlocal keepflag
         while True:
             with lock:
                 try:
@@ -320,7 +325,7 @@ def maintenance():
 ################################################################################
 
 def saveconfig():
-    with open('scraperconfig.txt','w') as configjson_file:
+    with open('scraperconfig.json','w') as configjson_file:
         configjson_file.write(json.dumps(configjson))
 
 ################################################################################
@@ -364,12 +369,13 @@ class class_progressmsg():
         stdout.flush()
 
     def tick(self):
-        self.pos+=1
-        stdout.write('\b'*self.bsnum)
-        stdout.flush()
-        self.printprog()
-        if self.pos == self.of:
-            self.finish()
+        if self.active:
+            self.pos+=1
+            stdout.write('\b'*self.bsnum)
+            stdout.flush()
+            self.printprog()
+            if self.pos == self.of:
+                self.finish()
 
     def finish(self):
         if self.active:
@@ -390,13 +396,13 @@ print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('~~~~~Version {}~~~~~'.format(version))
 
 #Load or create config JSON
-if os.path.exists('scraperconfig.txt'):
-    with open('scraperconfig.txt') as configjson_file:
+if os.path.exists('scraperconfig.json'):
+    with open('scraperconfig.json') as configjson_file:
         configjson = json.load(configjson_file)
 else:
     configjson = newconfigjson
     saveconfig()
-    print("\nCreated config file 'scraperconfig.txt'")
+    print("\nCreated config file 'scraperconfig.json'")
 
 #Main loop
 while True:
@@ -409,7 +415,7 @@ while True:
 
     elif action in ["HELP","H"]:
         print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made. 4plebs is also sourced")
-        print("The file 'scraperconfig.txt' stores the program's config in the program's directory")
+        print("The file 'scraperconfig.json' stores the program's config in the program's directory")
         print("Scraped files are saved in nested directories in the same directory as the program\n")
 
         print("SCRAPE      /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
