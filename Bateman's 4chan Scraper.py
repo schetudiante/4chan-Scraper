@@ -72,7 +72,7 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
 
     #Previously scraped and now archived threads
     if noarchive == False:
-        possiblyarchivedlist = [lastscrapeop for lastscrapeop in lastscrapeops if not lastscrapeop[0] in [scrapedactiveop[0] for scrapedactiveop in scrapedactiveops] and not lastscrapeop[0] in blacklist and lastscrapeop[1] in keywords]
+        possiblyarchivedlist = [lastscrapeop for lastscrapeop in lastscrapeops if not lastscrapeop[0] in [threadtoscrape[0] for threadtoscrape in threadstoscrape] and not lastscrapeop[0] in blacklist and lastscrapeop[1] in keywords]
         if possiblyarchivedlist:
             maxsize = max([len(str(t[0]))+len(t[1]) for t in possiblyarchivedlist])
             palwithpad = [[pal[0],pal[1],maxsize-(len(str(pal[0]))+len(pal[1]))] for pal in possiblyarchivedlist]
@@ -332,7 +332,7 @@ def maintenance():
     for board in configjson['lastscrapeops']:
         lastscrapeops_set = set(map(tuple,configjson['lastscrapeops'][board]))
         lastscrapeops_gen = map(list,lastscrapeops_set)
-        configjson['lastscrapeops'][board] = [x for x in lastscrapeops_gen][::-1]
+        configjson['lastscrapeops'][board] = [x for x in lastscrapeops_gen]
     print("~Maintenance complete~")
 
 ################################################################################
