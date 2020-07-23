@@ -19,7 +19,7 @@ def scrape():
         print("Currently no special requests")
     else:
         print("~Doing special requests~")
-        configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2])=='keep']
+        configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2],0)=='keep']
     print()
     if not configjson["keywords"]:
         print("Currently not scraping any boards\n")
@@ -58,25 +58,34 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
                                 break
                         if boxbreak==1:
                             break
-        #Actually do the scraping now
-        for threadtoscrape in threadstoscrape:
-            if scrapethread(boardcode,threadtoscrape[0],threadtoscrape[1]) == 'keep':
-                scrapedactiveops.insert(0,[threadop["no"],keyword])
+        #Compute padding for progress bar placement:
+        if threadstoscrape:
+            maxsize = max([len(str(t[0]))+len(t[1]) for t in threadstoscrape])
+            ttswithpad = [[tts[0],tts[1],maxsize-(len(str(tts[0]))+len(tts[1]))] for tts in threadstoscrape]
+            ttswithpad.sort(key=lambda x: x[2]) # sort for aesthetic purposes, may be better reverse sorting (last threads first incase 404)
+            #Actually do the scraping now
+            for ttst in ttswithpad:
+                if scrapethread(boardcode,ttst[0],ttst[1],ttst[2]) == 'keep':
+                    scrapedactiveops.insert(0,[ttst[0],ttst[1]])
     except:
         print("Error: Cannot load catalog for /{}/".format(boardcode))
 
     #Previously scraped and now archived threads
     if noarchive == False:
         possiblyarchivedlist = [lastscrapeop for lastscrapeop in lastscrapeops if not lastscrapeop[0] in [scrapedactiveop[0] for scrapedactiveop in scrapedactiveops] and not lastscrapeop[0] in blacklist and lastscrapeop[1] in keywords]
-        for possiblyarchivedop in possiblyarchivedlist:
-            if scrapethread(boardcode,possiblyarchivedop[0],possiblyarchivedop[1]) == 'keep':
-                scrapedactiveops.insert(0,possiblyarchivedop)
+        if possiblyarchivedlist:
+            maxsize = max([len(str(t[0]))+len(t[1]) for t in possiblyarchivedlist])
+            palwithpad = [[pal[0],pal[1],maxsize-(len(str(pal[0]))+len(pal[1]))] for pal in possiblyarchivedlist]
+            palwithpad.sort(key=lambda x: x[2])
+            for palt in palwithpad:
+                if scrapethread(boardcode,palt[0],palt[1],palt[2]) == 'keep' and not [palt[0],palt[1]] in scrapedactiveops:
+                    scrapedactiveops.insert(0,[palt[0],palt[1]])
 
     return scrapedactiveops
 
 ################################################################################
 
-def scrapethread(boardcode,threadopno,keyword):
+def scrapethread(boardcode,threadopno,keyword,padding):
     global lock
     filelist = getfilelist(boardcode,threadopno,keyword,'4chan')
     imstart = 0
@@ -96,7 +105,7 @@ def scrapethread(boardcode,threadopno,keyword):
         return 'keep'
 
     #Scrape files
-    progressmsg.progmsg(msg="Scraping /{}/:{}:{} ".format(boardcode,str(threadopno),keyword),of=len(impostslist))
+    progressmsg.progmsg(msg="Scraping /{}/:{}:{} {}".format(boardcode,str(threadopno),keyword,' '*padding),of=len(impostslist))
     keepflag = 0
 
     postbuffers = [[] for i in range(num_download_threads)]
@@ -320,6 +329,10 @@ def maintenance():
         configjson['blacklistedopnos'][board] = sorted(list(set(configjson['blacklistedopnos'][board])),reverse=True)
     for board in configjson['scrapednos']:
         configjson['scrapednos'][board] = sorted(list(set(configjson['scrapednos'][board])),reverse=True)
+    for board in configjson['lastscrapeops']:
+        lastscrapeops_set = set(map(tuple,configjson['lastscrapeops'][board]))
+        lastscrapeops_gen = map(list,lastscrapeops_set)
+        configjson['lastscrapeops'][board] = [x for x in lastscrapeops_gen][::-1]
     print("~Maintenance complete~")
 
 ################################################################################
