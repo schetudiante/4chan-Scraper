@@ -4,7 +4,7 @@ This is Bateman's 4chan scraper. It is a command line based program that saves a
 
 ### Files
 
-The main program to run is `Bateman's 4chan Scraper.py`, written in Python 3.6. When run the program will create a config file `scraperconfig.txt` in the current directory, and attachments scraped will be saved in folders alongside the program.
+The main program to run is `Bateman's 4chan Scraper.py`, written in Python 3.6. When run the program will create a config file `scraperconfig.json` in the current directory, and attachments scraped will be saved in folders alongside the program.
 
 ### Features
 
