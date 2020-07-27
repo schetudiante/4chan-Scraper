@@ -8,6 +8,7 @@ from math import floor  #   for progress bar
 version = '1.4.1'
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
+no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
 num_download_threads = 4
@@ -81,10 +82,10 @@ def scrapeboard(boardcode,keywords,lastscrapeops,blacklist):
 def scrapethread(boardcode,threadopno,keyword,padding):
     global lock
     filelist = getfilelist(boardcode,threadopno,keyword,'4chan')
-    imstart = 0
+    filestart = 0
     if filelist[0] in ['try_4plebs']:
         filelist = getfilelist(boardcode,threadopno,keyword,'4plebs')
-        imstart = 1
+        filestart = 1
     if filelist[0] in ['keep','delete']:
         return filelist[0]
     impostslist = filelist[1]
@@ -103,7 +104,7 @@ def scrapethread(boardcode,threadopno,keyword,padding):
 
     postbuffers = [[] for i in range(num_download_threads)]
     def scrapefile_download_thread(dtid):
-        nonlocal keepflag, postbuffers, imstart
+        nonlocal keepflag, postbuffers, filestart
         while True:
             with lock:
                 try:
@@ -113,7 +114,7 @@ def scrapethread(boardcode,threadopno,keyword,padding):
                         continue
                 except:
                     return
-            for modus in ['4chan','4plebs','4plebsthumbs'][imstart:]:
+            for modus in ['4chan','4plebs','4plebsthumbs'][filestart:]:
                 if modus == '4plebsthumbs':
                     with lock:
                         try:
@@ -153,7 +154,7 @@ def scrapethread(boardcode,threadopno,keyword,padding):
         except:
             print("Error: Could not delete folder '{}'".format(threadaddress))
 
-    if keepflag == 0 and (imstart!=0 or filelist[2] == True):
+    if keepflag == 0 and (filestart!=0 or filelist[2] == True):
         return 'delete'
     else:
         return 'keep'
