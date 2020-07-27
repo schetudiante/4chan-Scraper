@@ -3,7 +3,7 @@
 ## v1.4.1
 - Progress bars are now aligned via padding per board (and special requests) for ease of viewing
 - Removed `noarchiveboards` from the scraper config (see below)
-- No longer necessary to specify if a new board has 4chan archives when adding keywords (checking if a board has an archive or not is not done at all now (MAYBE CHANGING NOW): 'possibly archived' threads have to be loaded to check if still available or '404-ed' regardless of the archive's existence; also the bug below occurred from skipping threads on non-4chan-archive but yes-4plebs-archive boards)
+- No longer necessary to specify if a new board has 4chan archives when adding keywords (checking if a board has an archive or not is not done at all now; special requests always directly go for the thread json, not knowing if the thread is alive or not, and for those threads that do not appear in a catalog but were scraped last time and are on a non-4chan-archive board will only produce a harmless 404 when attempting to grab the json; It is not worth coding extra if-else to avoid a few 404s; also the bug below occurred from skipping threads on non-4chan-archive but yes-4plebs-archive boards)
 - Bugfix: archived threads on boards without 4chan archives that have 4plebs archives not being scraped (strictly this is only one board, /f/, however a fix nonetheless)
 - Bugfix: race condition: threads from previous scrapes (in config's `lastscrapeops`) present in the catalog when the catalog json is fetched but that are archived when the thread json is fetched were scraped twice (unnecessarily)
 - Change config extension from `.txt` to `.json`
