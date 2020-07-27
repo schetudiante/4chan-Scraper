@@ -6,7 +6,7 @@ from sys import stdout  #   for progress bar
 from math import floor  #   for progress bar
 
 version = '1.4.1beta'
-newconfigjson = {"keywords": {}, "noarchiveboards": [], "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
+newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
@@ -25,7 +25,7 @@ def scrape():
         print("Currently not scraping any boards\n")
     else:
         for boardcode in configjson["keywords"]:
-            configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],boardcode in configjson["noarchiveboards"],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
+            configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
             print()
     maintenance()
     print("~Updating config~")
@@ -35,7 +35,7 @@ def scrape():
 
 ################################################################################
 
-def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
+def scrapeboard(boardcode,keywords,lastscrapeops,blacklist):
     threadstoscrape = []
     scrapedactiveops = []
     #Board Catalog JSON
@@ -62,7 +62,7 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
     except:
         print("Error: Cannot load catalog for /{}/".format(boardcode))
 
-    threadstoscrape.extend([lsop for lsop in lastscrapeops if not lsop[0] in [tts[0] for tts in threadstoscrape] and not lsop[0] in blacklist and lsop[1] in keywords])
+    threadstoscrape = [lsop for lsop in lastscrapeops if not lsop[0] in [tts[0] for tts in threadstoscrape] and not lsop[0] in blacklist and lsop[1] in keywords] + threadstoscrape
 
     #Compute padding for progress bar placement:
     if threadstoscrape:
@@ -512,13 +512,6 @@ while True:
         if not boardtomodify:
             print("No board supplied")
             continue
-        if not boardtomodify in configjson["keywords"]:
-            boardtomodifyarchive = input("Does /{}/ have an archive? (Y/N) ".format(boardtomodify)).upper().strip()
-            if not boardtomodifyarchive in ["Y","N"]:
-                print("Error: Expected Y or N")
-                continue
-        else:
-            boardtomodifyarchive = "OLD"
         keywordstoadd = input("Which keywords to start scraping for? ").lower().split()
         keywordstoadd = [keyword.replace("_"," ").strip() for keyword in keywordstoadd if keyword.replace("_"," ").strip() != ""]
         if not keywordstoadd:
@@ -529,8 +522,6 @@ while True:
             continue
         if not boardtomodify in configjson["keywords"]:
             configjson["keywords"][boardtomodify]=[]
-        if boardtomodifyarchive == "N":
-            configjson["noarchiveboards"].append(boardtomodify)
         if not boardtomodify in configjson["lastscrapeops"]:
             configjson["lastscrapeops"][boardtomodify]=[]
         if not boardtomodify in configjson["blacklistedopnos"]:
@@ -569,8 +560,6 @@ while True:
         if not configjson["keywords"][boardtomodify]:
             print("Stopped scraping /{}/".format(boardtomodify))
             del configjson["keywords"][boardtomodify]
-            if boardtomodify in configjson["noarchiveboards"]:
-                configjson["noarchiveboards"].remove(boardtomodify)
         else:
             print("Keywords for /{}/ updated to:".format(boardtomodify),end=" ")
             for keyword in configjson["keywords"][boardtomodify][:-1]:
