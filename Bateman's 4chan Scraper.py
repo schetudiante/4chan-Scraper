@@ -36,33 +36,32 @@ def scrape():
 ################################################################################
 
 def scrapeboard(boardcode,keywords,lastscrapeops,blacklist):
-    threadstoscrape = []
     scrapedactiveops = []
+    threadstoscrape = [lsop for lsop in lastscrapeops if not lsop[0] in blacklist and lsop[1] in keywords]
     #Board Catalog JSON
     try:
         print("~Getting JSON for catalog of /{}/~".format(boardcode))
         catalogjson_url = ("https://a.4cdn.org/{}/catalog.json".format(boardcode))
         catalogjson_file = urllib.request.urlopen(catalogjson_url)
         catalogjson = json.load(catalogjson_file)
+        threadsgathered = []
         #Search each thread for keywords and append to list for scraping
         for page in catalogjson:
             for threadop in page["threads"]:
-                if threadop["no"] in blacklist:
-                    continue
-                boxbreak=0
-                boxestocheck=[b for b in boxestocheckfor if b in threadop]
-                for boxtocheck in boxestocheck:
-                    for keyword in keywords:
-                        if keyword in threadop[boxtocheck].lower():
-                            threadstoscrape.append([threadop["no"],keyword])
-                            boxbreak=1
+                if not threadop["no"] in blacklist:
+                    boxbreak=0
+                    boxestocheck=[b for b in boxestocheckfor if b in threadop]
+                    for boxtocheck in boxestocheck:
+                        for keyword in keywords:
+                            if keyword in threadop[boxtocheck].lower():
+                                threadsgathered.append([threadop["no"],keyword])
+                                boxbreak=1
+                                break
+                        if boxbreak==1:
                             break
-                    if boxbreak==1:
-                        break
+        threadstoscrape = threadstoscrape + [tg for tg in threadsgathered if not tg[0] in [tts[0] for tts in threadstoscrape]]
     except:
         print("Error: Cannot load catalog for /{}/".format(boardcode))
-
-    threadstoscrape = [lsop for lsop in lastscrapeops if not lsop[0] in [tts[0] for tts in threadstoscrape] and not lsop[0] in blacklist and lsop[1] in keywords] + threadstoscrape
 
     #Compute padding for progress bar placement:
     if threadstoscrape:
