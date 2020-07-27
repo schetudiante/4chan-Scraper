@@ -62,15 +62,13 @@ def scrapeboard(boardcode,keywords,noarchive,lastscrapeops,blacklist):
     except:
         print("Error: Cannot load catalog for /{}/".format(boardcode))
 
-    #Previously scraped and now possibly archived threads
-    if noarchive == False:
-        threadstoscrape.extend([lsop for lsop in lastscrapeops if not lsop[0] in [tts[0] for tts in threadstoscrape] and not lsop[0] in blacklist and lsop[1] in keywords])
+    threadstoscrape.extend([lsop for lsop in lastscrapeops if not lsop[0] in [tts[0] for tts in threadstoscrape] and not lsop[0] in blacklist and lsop[1] in keywords])
 
     #Compute padding for progress bar placement:
     if threadstoscrape:
         maxsize = max([len(str(tts[0]))+len(tts[1]) for tts in threadstoscrape])
         ttswithpad = [[tts[0],tts[1],maxsize-(len(str(tts[0]))+len(tts[1]))] for tts in threadstoscrape]
-        ttswithpad.sort(key=lambda x: x[2]) # sort for aesthetic purposes, may be better reverse sorting (last threads first incase 404)
+        # ttswithpad.sort(key=lambda x: x[2]) # sort for aesthetic purposes, may be better reverse sorting (last threads first incase 404)
         #Actually do the scraping now
         for ttst in ttswithpad:
             if scrapethread(boardcode,ttst[0],ttst[1],ttst[2]) == 'keep':
@@ -215,6 +213,8 @@ def getfilelist(boardcode,threadopno,keyword,modus):
 ################################################################################
 
 def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
+    global plebboards
+
     if modus == '4chan':
         try:
             imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
@@ -228,9 +228,14 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code == 404:
-                with lock:
-                    progressmsg.progmsg(msg="File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file ".format(boardcode,threadopno,keyword,str(post["no"])))
-                return 'try_next_modus'
+                if boardcode in plebboards:
+                    with lock:
+                        progressmsg.progmsg(msg="File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file ".format(boardcode,threadopno,keyword,str(post["no"])))
+                    return 'try_next_modus'
+                else:
+                    with lock:
+                        progressmsg.progmsg(msg="File /{}/:{}:{}:{} not found on 4chan and not on 4plebs ".format(boardcode,threadopno,keyword,str(post["no"])))
+                    return 'success'
             else:
                 with lock:
                     progressmsg.progmsg(msg="Error: Cannot load 4chan file /{}/:{}:{}:{} ".format(boardcode,threadopno,keyword,str(post["no"])))
