@@ -5,7 +5,7 @@ import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from math import floor  #   for progress bar
 
-version = '1.4.1beta'
+version = '1.4.1'
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = ["name","sub","com","filename"]
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -19,7 +19,9 @@ def scrape():
         print("Currently no special requests")
     else:
         print("~Doing special requests~")
-        configjson["specialrequests"]=[req for req in configjson["specialrequests"] if scrapethread(req[0],req[1],req[2],0)=='keep']
+        maxsize = max([len(srq[0])+len(str(srq[1]))+len(srq[2]) for srq in configjson["specialrequests"]])
+        srqwithpad = [[srq[0],srq[1],srq[2],maxsize-(len(srq[0])+len(str(srq[1]))+len(srq[2]))] for srq in configjson["specialrequests"]]
+        configjson["specialrequests"] = [srqp[:-1] for srqp in srqwithpad if scrapethread(*srqp)=='keep']
     print()
     if not configjson["keywords"]:
         print("Currently not scraping any boards\n")
@@ -36,7 +38,6 @@ def scrape():
 ################################################################################
 
 def scrapeboard(boardcode,keywords,lastscrapeops,blacklist):
-    scrapedactiveops = []
     threadstoscrape = [lsop for lsop in lastscrapeops if not lsop[0] in blacklist and lsop[1] in keywords]
     #Board Catalog JSON
     try:
@@ -59,19 +60,19 @@ def scrapeboard(boardcode,keywords,lastscrapeops,blacklist):
                                 break
                         if boxbreak==1:
                             break
-        threadstoscrape = threadstoscrape + [tg for tg in threadsgathered if not tg[0] in [tts[0] for tts in threadstoscrape]]
+        threadstoscrape += [tg for tg in threadsgathered if not tg[0] in [tts[0] for tts in threadstoscrape]]
     except:
         print("Error: Cannot load catalog for /{}/".format(boardcode))
 
-    #Compute padding for progress bar placement:
+    scrapedactiveops = []
     if threadstoscrape:
+        #Compute padding for progress bar placement:
         maxsize = max([len(str(tts[0]))+len(tts[1]) for tts in threadstoscrape])
         ttswithpad = [[tts[0],tts[1],maxsize-(len(str(tts[0]))+len(tts[1]))] for tts in threadstoscrape]
-        # ttswithpad.sort(key=lambda x: x[2]) # sort for aesthetic purposes, may be better reverse sorting (last threads first incase 404)
         #Actually do the scraping now
         for ttst in ttswithpad:
             if scrapethread(boardcode,ttst[0],ttst[1],ttst[2]) == 'keep':
-                scrapedactiveops.insert(0,[ttst[0],ttst[1]])
+                scrapedactiveops.append([ttst[0],ttst[1]])
 
     return scrapedactiveops
 
@@ -102,7 +103,7 @@ def scrapethread(boardcode,threadopno,keyword,padding):
 
     postbuffers = [[] for i in range(num_download_threads)]
     def scrapefile_download_thread(dtid):
-        nonlocal keepflag, postbuffers
+        nonlocal keepflag, postbuffers, imstart
         while True:
             with lock:
                 try:
