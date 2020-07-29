@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.5.0
+- Added `PLEBREQUEST` feature: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests
+- Tweaked progress bars to have less flickery cursor
+
 ## v1.4.1
 - Progress bars are now aligned via padding per board (and special requests) for ease of viewing
 - Removed `noarchiveboards` from the scraper config (see below)
