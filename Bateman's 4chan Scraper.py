@@ -4,10 +4,11 @@ import os               #   creating folders
 import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from math import floor  #   for progress bar
+from time import sleep  #   sleep if 4plebs search cooldown reached
 
-version = '1.4.1'
+version = '1.5.0'
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
-boxestocheckfor = ["name","sub","com","filename"]
+boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
@@ -39,6 +40,7 @@ def scrape():
 ################################################################################
 
 def scrapeboard(boardcode,keywords,lastscrapeops,blacklist):
+    global boxestocheckfor
     threadstoscrape = [lsop for lsop in lastscrapeops if not lsop[0] in blacklist and lsop[1] in keywords]
     #Board Catalog JSON
     try:
@@ -52,7 +54,7 @@ def scrapeboard(boardcode,keywords,lastscrapeops,blacklist):
             for threadop in page["threads"]:
                 if not threadop["no"] in blacklist:
                     boxbreak=0
-                    boxestocheck=[b for b in boxestocheckfor if b in threadop]
+                    boxestocheck=[b for b in boxestocheckfor["4chan"] if b in threadop]
                     for boxtocheck in boxestocheck:
                         for keyword in keywords:
                             if keyword in threadop[boxtocheck].lower():
@@ -72,8 +74,8 @@ def scrapeboard(boardcode,keywords,lastscrapeops,blacklist):
         ttswithpad = [[tts[0],tts[1],maxsize-(len(str(tts[0]))+len(tts[1]))] for tts in threadstoscrape]
         #Actually do the scraping now
         for ttst in ttswithpad:
-            if scrapethread(boardcode,ttst[0],ttst[1],ttst[2]) == 'keep':
-                scrapedactiveops.append([ttst[0],ttst[1]])
+            if scrapethread(boardcode,*ttst) == 'keep':
+                scrapedactiveops.append(ttst[:-1])
 
     return scrapedactiveops
 
@@ -104,7 +106,7 @@ def scrapethread(boardcode,threadopno,keyword,padding):
 
     postbuffers = [[] for i in range(num_download_threads)]
     def scrapefile_download_thread(dtid):
-        nonlocal keepflag, postbuffers, filestart
+        nonlocal keepflag, postbuffers
         while True:
             with lock:
                 try:
@@ -162,7 +164,7 @@ def scrapethread(boardcode,threadopno,keyword,padding):
 ################################################################################
 
 def getfilelist(boardcode,threadopno,keyword,modus):
-    global plebboards
+    global plebboards,glowiebypass
 
     if modus == '4chan':
         try:
@@ -324,6 +326,38 @@ def viewblacklisting():
 
 ################################################################################
 
+def plebrequest(boardcode,keyword):
+    global boxestocheckfor,glowiebypass,configjson
+    print("Searching 4plebs archive for threads on /{}/ containing \'{}\'".format(boardcode,keyword))
+    opnos = []
+    for search_option in boxestocheckfor["4plebs"]:
+        searchjson_url = 'http://archive.4plebs.org/_/api/chan/search/?type=op&boards={}&{}={}'.format(boardcode,search_option,keyword.replace(" ","%20"))
+        cooldown_loop = True
+        while cooldown_loop:
+            searchjson_file = urllib.request.urlopen(urllib.request.Request(searchjson_url,None,{'User-Agent':glowiebypass}))
+            searchjson = json.load(searchjson_file)
+            if "error" in searchjson:
+                if searchjson["error"] == "No results found.":
+                    cooldown_loop = False
+                elif searchjson["error"].startswith("Search limit exceeded."):
+                    sleeptime = 60 #sleeptime = 5 + int(searchjson["error"][35:37].strip()) #35 to 37 hardcoded for time
+                    print("Sleeping for {} seconds (4plebs cooldown)".format(sleeptime))
+                    sleep(sleeptime)
+            else:
+                for post in searchjson["0"]["posts"]:
+                    opnos.append(int(post["num"]))
+                cooldown_loop = False
+
+    opnos = list(set(opnos).difference(set([req[1] for req in configjson["specialrequests"]])))
+    for opno in opnos:
+        configjson["specialrequests"].append([boardcode,opno,keyword])
+    if opnos:
+        print("Added {} special requests".format(len(opnos)))
+    else:
+        print("No more special requests added")
+
+################################################################################
+
 def maintenance():
     print("~Performing maintenance~")
     for board in configjson['keywords']:
@@ -388,7 +422,6 @@ class class_progressmsg():
         if self.active:
             self.pos+=1
             stdout.write('\b'*self.bsnum)
-            stdout.flush()
             self.printprog()
             if self.pos == self.of:
                 self.finish()
@@ -423,7 +456,7 @@ else:
 #Main loop
 while True:
     print('\n')
-    action = input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/BLACKLIST/VIEW/ADD/DELETE/MAINTENANCE/HELP/QUIT) ").upper().strip()
+    action = input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/PLEBREQUEST/BLACKLIST/VIEW/ADD/DELETE/MAINTENANCE/HELP/QUIT) ").upper().strip()
     print('\n')
 
     if action in ["QUIT","Q"]:
@@ -437,6 +470,7 @@ while True:
         print("SCRAPE      /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
         print("SCRAPEQUIT  / SQ: Scrapes then closes the program")
         print("REQUEST     /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
+        print("PLEBREQUEST /  P: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests")
         print("BLACKLIST   /  B: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
         print("VIEW        /  V: View the keywords that are currently being searched for")
         print("ADD         /  A: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
@@ -477,6 +511,19 @@ while True:
             if not [requestboard,requestopno,requestkeyword] in configjson["specialrequests"]:
                 configjson["specialrequests"].append([requestboard,requestopno,requestkeyword])
                 print("Thread /{}/:{}:{} added to special requests".format(requestboard,str(requestopno),requestkeyword))
+        saveconfig()
+
+    elif action in ["PLEBREQUEST","P","PR"]:
+        #put in reminder of 1 min cooldown
+        plebrequest_board = input("What board to search on? ").lower().strip()
+        if not plebrequest_board:
+            print("No board supplied")
+            continue
+        plebrequest_keyword = input("What keyword to search 4plebs for? ").lower().replace("_"," ").strip()
+        if not plebrequest_keyword:
+            print("No keyword supplied")
+            continue
+        plebrequest(plebrequest_board,plebrequest_keyword)
         saveconfig()
 
     elif action in ["BLACKLIST","B","BLACK","BL"]:
