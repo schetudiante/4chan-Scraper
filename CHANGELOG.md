@@ -3,6 +3,7 @@
 ## v?.?.?
 - Additional note for changelog of v1.4.1
 - Rename main program from `Bateman's 4chan Scraper.py` to `4chan Scraper.py`
+- Added .gitignore stuff to repo (for my sake)
 
 ## v1.5.0
 - Added `PLEBREQUEST` feature: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests
