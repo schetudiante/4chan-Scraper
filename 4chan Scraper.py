@@ -12,7 +12,7 @@ from sys import stdout  #   for progress bar
 from math import floor  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached
 
-version = '1.5.0'
+version = '1.5.1beta'
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
