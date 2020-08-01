@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.5.1
+- Fix special requests also appearing in main scrape unnecessarily
+- Additional note for changelog of v1.4.1
+- Rename main program from `Bateman's 4chan Scraper.py` to `4chan Scraper.py`
+- Added .gitignore stuff to repo (for my sake)
+
 ## v1.5.0
 - Added `PLEBREQUEST` feature: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests
 - Tweaked progress bars to have less flickery cursor
@@ -11,6 +17,7 @@
 - Bugfix: archived threads on boards without 4chan archives that have 4plebs archives not being scraped (strictly this is only one board, /f/, however a fix nonetheless)
 - Bugfix: race condition: threads from previous scrapes (in config's `lastscrapeops`) present in the catalog when the catalog json is fetched but that are archived when the thread json is fetched were scraped twice (unnecessarily)
 - Change config extension from `.txt` to `.json`
+- Previously scraped threads are now scraped first lest they 404 whilst newer threads are scraped
 
 ## v1.4.0
 - Added progress bar and counter when scraping a thread

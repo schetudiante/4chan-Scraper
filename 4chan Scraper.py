@@ -1,12 +1,17 @@
+##################################
+#####BATEMAN'S 4CHAN SCRAPER######
+##################################
+##github.com/SelfAdjointOperator##
+##################################
+
 import urllib.request   #   getting files from web
 import json             #   config file json to and from dictionary
 import os               #   creating folders
 import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
-from math import floor  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached
 
-version = '1.5.0'
+version = '1.5.1'
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
@@ -28,8 +33,9 @@ def scrape():
     if not configjson["keywords"]:
         print("Currently not scraping any boards\n")
     else:
+        reqignorelist = [srq[1] for srq in configjson["specialrequests"]]
         for boardcode in configjson["keywords"]:
-            configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode])
+            configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode]+reqignorelist)
             print()
     maintenance()
     print("~Updating config~")
@@ -39,9 +45,9 @@ def scrape():
 
 ################################################################################
 
-def scrapeboard(boardcode,keywords,lastscrapeops,blacklist):
+def scrapeboard(boardcode,keywords,lastscrapeops,ignorelist):
     global boxestocheckfor
-    threadstoscrape = [lsop for lsop in lastscrapeops if not lsop[0] in blacklist and lsop[1] in keywords]
+    threadstoscrape = [lsop for lsop in lastscrapeops if not lsop[0] in ignorelist and lsop[1] in keywords]
     #Board Catalog JSON
     try:
         print("~Getting JSON for catalog of /{}/~".format(boardcode))
@@ -52,7 +58,7 @@ def scrapeboard(boardcode,keywords,lastscrapeops,blacklist):
         #Search each thread for keywords and append to list for scraping
         for page in catalogjson:
             for threadop in page["threads"]:
-                if not threadop["no"] in blacklist:
+                if not threadop["no"] in ignorelist:
                     boxbreak=0
                     boxestocheck=[b for b in boxestocheckfor["4chan"] if b in threadop]
                     for boxtocheck in boxestocheck:
@@ -412,7 +418,7 @@ class class_progressmsg():
         stdout.flush()
 
     def printprog(self):
-        hashund = ('#'*floor(10*(self.pos/self.of))).ljust(10,'_')
+        hashund = ('#'*int(10*(self.pos/self.of))).ljust(10,'_')
         prog = '[{}] ({}/{})'.format(hashund,self.pos,self.of)
         self.bsnum = len(prog)
         stdout.write(prog)
