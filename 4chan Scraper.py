@@ -11,7 +11,7 @@ import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached
 
-version = '1.5.1beta'
+version = '1.5.1'
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
@@ -33,8 +33,9 @@ def scrape():
     if not configjson["keywords"]:
         print("Currently not scraping any boards\n")
     else:
+        reqignorelist = [srq[1] for srq in configjson["specialrequests"]]
         for boardcode in configjson["keywords"]:
-            configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode]+[srq[1] for srq in configjson["specialrequests"]])
+            configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode]+reqignorelist)
             print()
     maintenance()
     print("~Updating config~")

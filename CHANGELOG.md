@@ -1,6 +1,7 @@
 # Changelog
 
-## v?.?.?
+## v1.5.1
+- Fix special requests also appearing in main scrape unnecessarily
 - Additional note for changelog of v1.4.1
 - Rename main program from `Bateman's 4chan Scraper.py` to `4chan Scraper.py`
 - Added .gitignore stuff to repo (for my sake)
