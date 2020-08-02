@@ -11,7 +11,7 @@ import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached
 
-version = '1.5.1'
+version = '1.5.2beta'
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
@@ -181,7 +181,7 @@ def getfilelist(boardcode,threadopno,keyword,modus):
             return ['success',impostslist,'archived' in threadjson["posts"][0]]
         except Exception as e:
             #Thread error:
-            if hasattr(e,'code') and e.code == 404:
+            if hasattr(e,'code') and e.code == 404: # pylint: disable=E1101
                 if boardcode in plebboards:
                     #If 404 error and plebboard then try to get thread JSON from 4plebs
                     print("Thread /{}/:{}:{} not found on 4chan, trying 4plebs".format(boardcode,str(threadopno),keyword))
@@ -212,7 +212,7 @@ def getfilelist(boardcode,threadopno,keyword,modus):
                         impostslist.append({"no":str(postvalue["num"]),"tim":os.path.splitext(postvalue["media"]["media"])[0],"ext":os.path.splitext(postvalue["media"]["media"])[1]})
             return ['success',impostslist]
         except Exception as e:
-            if hasattr(e,'code') and e.code in [404,'404']:
+            if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
                 print("Thread /{}/:{}:{} not found on 4plebs".format(boardcode,str(threadopno),keyword))
                 return ['delete']
             else:
@@ -236,7 +236,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             urllib.request.urlretrieve(imgurl,imgaddress)
             return 'success'
         except Exception as e:
-            if hasattr(e,'code') and e.code == 404:
+            if hasattr(e,'code') and e.code == 404: # pylint: disable=E1101
                 if boardcode in plebboards:
                     with lock:
                         progressmsg.progmsg(msg="File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file ".format(boardcode,threadopno,keyword,str(post["no"])))
@@ -262,7 +262,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             urllib.request.urlretrieve(imgurl,imgaddress)
             return 'success'
         except Exception as e:
-            if hasattr(e,'code') and e.code in [404,'404']:
+            if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
                 with lock:
                     progressmsg.progmsg(msg="File /{}/:{}:{}:{} not found on 4plebs, scraping 4plebs thumbnail ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'try_next_modus'
@@ -284,7 +284,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             urllib.request.urlretrieve(imgurl,imgaddress)
             return 'success'
         except Exception as e:
-            if hasattr(e,'code') and e.code in [404,'404']:
+            if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
                 with lock:
                     progressmsg.progmsg(msg="File /{}/:{}:{}:{}(thumb) not found on 4plebs ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'success'
