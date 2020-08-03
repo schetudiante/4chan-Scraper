@@ -5,8 +5,8 @@
 ##################################
 
 import urllib.request   #   getting files from web
-import json             #   config file json to and from dictionary
-import os               #   creating folders
+import json             #   config file and api pages jsons to and from dictionary
+import os               #   managing folders
 import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached
@@ -15,6 +15,7 @@ version = '1.5.2beta'
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
+                                                # may also skip some still alive threads that have just dropped off the catalog
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
 num_download_threads = 4
@@ -407,15 +408,10 @@ class class_progressmsg():
         if self.active == True:
             stdout.write('\n')
             stdout.flush()
-        self.printmsg()
-        self.printprog()
-        self.active = True
-        if 'tick' in kwargs:
-            self.tick()
-
-    def printmsg(self):
         stdout.write(self.msg)
         stdout.flush()
+        self.printprog()
+        self.active = True
 
     def printprog(self):
         hashund = ('#'*int(10*(self.pos/self.of))).ljust(10,'_')
