@@ -6,12 +6,13 @@
 
 import urllib.request   #   getting files from web
 import json             #   config file and api pages jsons to and from dictionary
-import os               #   managing folders
+import os               #   managing folders and update files
 import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
-from time import sleep  #   sleep if 4plebs search cooldown reached
+from time import sleep  #   sleep if 4plebs search cooldown reached, restart delay
 
-version = '1.5.2beta'
+version = '1.6.0'
+auto_update = True
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
@@ -436,6 +437,44 @@ class class_progressmsg():
 
 ################################################################################
 
+def update():
+    def download_update(downloadVersion):
+        try:
+            fpath = os.path.realpath(__file__)
+            latestVersionProgram_url = "https://raw.githubusercontent.com/SelfAdjointOperator/4chan-Scraper/{}/4chan%20Scraper.py".format(downloadVersion)
+            urllib.request.urlretrieve(latestVersionProgram_url,fpath+".tmp")
+            os.remove(fpath)
+            os.rename(fpath+".tmp",fpath)
+            return True
+        except:
+            return False
+
+    try:
+        print("Checking for updates...")
+        latestVersionJson_url = "https://api.github.com/repos/selfadjointoperator/4chan-scraper/releases/latest"
+        latestVersionJson_file = urllib.request.urlopen(latestVersionJson_url)
+        latestVersionJson = json.load(latestVersionJson_file)
+        webversionv = latestVersionJson["tag_name"]
+        if webversionv[1:] == version: #versions always vX.Y.Z; remove v
+            print("Latest Version Running")
+        else:
+            print("Downloading new version {}...".format(webversionv))
+            if download_update(webversionv) is True:
+                print("Restarting new version in 3",end="",flush=True)
+                for i in range(3):
+                    sleep(1)
+                    print("\b{}".format(str(2-i)),end="",flush=True)
+                os.startfile(os.path.realpath(__file__))
+                raise SystemExit
+            else:
+                print("Error: Unable to download updates; running current version")
+    except SystemExit:
+        raise SystemExit
+    except:
+        print("Error: Unable to check for updates; running current version")
+
+################################################################################
+
 #Main Thread Here
 
 lock = threading.Lock()
@@ -445,6 +484,11 @@ print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('~~~~~Version {}~~~~~'.format(version))
+
+#Check for updates
+if auto_update is True:
+    print()
+    update()
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.json'):
