@@ -12,7 +12,7 @@ from sys import stdout  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached, restart delay
 
 version = '1.6.0'
-auto_update = True
+auto_update = True #set to False during maintenance / developing
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
@@ -456,7 +456,7 @@ def update():
         latestVersionJson = json.load(latestVersionJson_file)
         webversionv = latestVersionJson["tag_name"]
         if webversionv[1:] == version: #versions always vX.Y.Z; remove v
-            print("Latest Version Running")
+            print("Latest version running")
         else:
             print("Downloading new version {}...".format(webversionv))
             if download_update(webversionv) is True:

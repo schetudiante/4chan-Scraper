@@ -1,7 +1,8 @@
 # Changelog
 
-## v?.?.?
-- Additional note for changelog of v1.4.1
+## v1.6.0
+- Scraper now checks for updates on launch and automatically downloads them
+- Additional note for changelog of v1.4.1 (number of multithreaded downloads now 4)
 
 ## v1.5.1
 - Fix special requests also appearing in main scrape unnecessarily
