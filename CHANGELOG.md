@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.6.1?
+- Removed `MAINTENANCE` option from main menu; maintenance is now fully automated and is only done after scraping
+
 ## v1.6.0
 - Scraper now checks for updates on launch and automatically downloads them
 - Additional note for changelog of v1.4.1 (number of multithreaded downloads now 4)
