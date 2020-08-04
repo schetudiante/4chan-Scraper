@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.6.0
+- Scraper now checks for updates on launch and automatically downloads them
+- Additional note for changelog of v1.4.1 (number of multithreaded downloads now 4)
+
 ## v1.5.1
 - Fix special requests also appearing in main scrape unnecessarily
 - Additional note for changelog of v1.4.1
@@ -18,6 +22,7 @@
 - Bugfix: race condition: threads from previous scrapes (in config's `lastscrapeops`) present in the catalog when the catalog json is fetched but that are archived when the thread json is fetched were scraped twice (unnecessarily)
 - Change config extension from `.txt` to `.json`
 - Previously scraped threads are now scraped first lest they 404 whilst newer threads are scraped
+- Number of multithreaded downloads changed from 8 to 4
 
 ## v1.4.0
 - Added progress bar and counter when scraping a thread

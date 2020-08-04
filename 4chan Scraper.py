@@ -5,16 +5,18 @@
 ##################################
 
 import urllib.request   #   getting files from web
-import json             #   config file json to and from dictionary
-import os               #   creating folders
+import json             #   config file and api pages jsons to and from dictionary
+import os               #   managing folders and update files
 import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
-from time import sleep  #   sleep if 4plebs search cooldown reached
+from time import sleep  #   sleep if 4plebs search cooldown reached, restart delay
 
-version = '1.5.1'
+version = '1.6.0'
+auto_update = True #set to False during maintenance / developing
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
+                                                # may also skip some still alive threads that have just dropped off the catalog
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
 num_download_threads = 4
@@ -181,7 +183,7 @@ def getfilelist(boardcode,threadopno,keyword,modus):
             return ['success',impostslist,'archived' in threadjson["posts"][0]]
         except Exception as e:
             #Thread error:
-            if hasattr(e,'code') and e.code == 404:
+            if hasattr(e,'code') and e.code == 404: # pylint: disable=E1101
                 if boardcode in plebboards:
                     #If 404 error and plebboard then try to get thread JSON from 4plebs
                     print("Thread /{}/:{}:{} not found on 4chan, trying 4plebs".format(boardcode,str(threadopno),keyword))
@@ -212,7 +214,7 @@ def getfilelist(boardcode,threadopno,keyword,modus):
                         impostslist.append({"no":str(postvalue["num"]),"tim":os.path.splitext(postvalue["media"]["media"])[0],"ext":os.path.splitext(postvalue["media"]["media"])[1]})
             return ['success',impostslist]
         except Exception as e:
-            if hasattr(e,'code') and e.code in [404,'404']:
+            if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
                 print("Thread /{}/:{}:{} not found on 4plebs".format(boardcode,str(threadopno),keyword))
                 return ['delete']
             else:
@@ -236,7 +238,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             urllib.request.urlretrieve(imgurl,imgaddress)
             return 'success'
         except Exception as e:
-            if hasattr(e,'code') and e.code == 404:
+            if hasattr(e,'code') and e.code == 404: # pylint: disable=E1101
                 if boardcode in plebboards:
                     with lock:
                         progressmsg.progmsg(msg="File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file ".format(boardcode,threadopno,keyword,str(post["no"])))
@@ -262,7 +264,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             urllib.request.urlretrieve(imgurl,imgaddress)
             return 'success'
         except Exception as e:
-            if hasattr(e,'code') and e.code in [404,'404']:
+            if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
                 with lock:
                     progressmsg.progmsg(msg="File /{}/:{}:{}:{} not found on 4plebs, scraping 4plebs thumbnail ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'try_next_modus'
@@ -284,7 +286,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             urllib.request.urlretrieve(imgurl,imgaddress)
             return 'success'
         except Exception as e:
-            if hasattr(e,'code') and e.code in [404,'404']:
+            if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
                 with lock:
                     progressmsg.progmsg(msg="File /{}/:{}:{}:{}(thumb) not found on 4plebs ".format(boardcode,threadopno,keyword,str(post["no"])))
                 return 'success'
@@ -407,15 +409,10 @@ class class_progressmsg():
         if self.active == True:
             stdout.write('\n')
             stdout.flush()
-        self.printmsg()
-        self.printprog()
-        self.active = True
-        if 'tick' in kwargs:
-            self.tick()
-
-    def printmsg(self):
         stdout.write(self.msg)
         stdout.flush()
+        self.printprog()
+        self.active = True
 
     def printprog(self):
         hashund = ('#'*int(10*(self.pos/self.of))).ljust(10,'_')
@@ -440,6 +437,44 @@ class class_progressmsg():
 
 ################################################################################
 
+def update():
+    def download_update(downloadVersion):
+        try:
+            fpath = os.path.realpath(__file__)
+            latestVersionProgram_url = "https://raw.githubusercontent.com/SelfAdjointOperator/4chan-Scraper/{}/4chan%20Scraper.py".format(downloadVersion)
+            urllib.request.urlretrieve(latestVersionProgram_url,fpath+".tmp")
+            os.remove(fpath)
+            os.rename(fpath+".tmp",fpath)
+            return True
+        except:
+            return False
+
+    try:
+        print("Checking for updates...")
+        latestVersionJson_url = "https://api.github.com/repos/selfadjointoperator/4chan-scraper/releases/latest"
+        latestVersionJson_file = urllib.request.urlopen(latestVersionJson_url)
+        latestVersionJson = json.load(latestVersionJson_file)
+        webversionv = latestVersionJson["tag_name"]
+        if webversionv[1:] == version: #versions always vX.Y.Z; remove v
+            print("Latest version running")
+        else:
+            print("Downloading new version {}...".format(webversionv))
+            if download_update(webversionv) is True:
+                print("Restarting new version in 3",end="",flush=True)
+                for i in range(3):
+                    sleep(1)
+                    print("\b{}".format(str(2-i)),end="",flush=True)
+                os.startfile(os.path.realpath(__file__))
+                raise SystemExit
+            else:
+                print("Error: Unable to download updates; running current version")
+    except SystemExit:
+        raise SystemExit
+    except:
+        print("Error: Unable to check for updates; running current version")
+
+################################################################################
+
 #Main Thread Here
 
 lock = threading.Lock()
@@ -449,6 +484,11 @@ print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('BATEMAN\'S 4CHAN SCRAPER')
 print('~~~~~~~~~~~~~~~~~~~~~~~')
 print('~~~~~Version {}~~~~~'.format(version))
+
+#Check for updates
+if auto_update is True:
+    print()
+    update()
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.json'):
