@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.6.1?
+## v1.6.1
 - Removed `MAINTENANCE` option from main menu; maintenance is now fully automated and is only done after scraping
 
 ## v1.6.0

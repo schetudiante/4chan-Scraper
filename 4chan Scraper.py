@@ -11,8 +11,8 @@ import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached, restart delay
 
-version = '1.6.1beta'
-auto_update = False #set to False during maintenance / developing
+version = '1.6.1'
+auto_update = True #set to False during maintenance / developing
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
