@@ -11,7 +11,7 @@ import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached, restart delay
 
-version = '1.6.0'
+version = '1.6.1'
 auto_update = True #set to False during maintenance / developing
 newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
@@ -502,7 +502,7 @@ else:
 #Main loop
 while True:
     print('\n')
-    action = input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/PLEBREQUEST/BLACKLIST/VIEW/ADD/DELETE/MAINTENANCE/HELP/QUIT) ").upper().strip()
+    action = input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/PLEBREQUEST/BLACKLIST/VIEW/ADD/DELETE/HELP/QUIT) ").upper().strip()
     print('\n')
 
     if action in ["QUIT","Q"]:
@@ -521,7 +521,6 @@ while True:
         print("VIEW        /  V: View the keywords that are currently being searched for")
         print("ADD         /  A: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
         print("DELETE      /  D: Delete keywords to no longer search for")
-        print("MAINTENANCE /  M: Remove any possible duplicate numbers that have arisen in the config from external editing and reorder in descending order for faster search time. Keywords are also put into alphabetical order")
         print("HELP        /  H: Shows this help text")
         print("QUIT        /  Q: Closes the program")
 
@@ -659,10 +658,6 @@ while True:
             for keyword in configjson["keywords"][boardtomodify][:-1]:
                 print("'{}',".format(keyword),end=" ")
             print("'{}'".format(configjson["keywords"][boardtomodify][-1]))
-        saveconfig()
-
-    elif action in ["MAINTENANCE","M"]:
-        maintenance()
         saveconfig()
 
     else:
