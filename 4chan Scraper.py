@@ -11,16 +11,28 @@ import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached, restart delay
 
-version = '2.0.0alpha' # big revision to scraper config format
-auto_update = False #set to False during maintenance / developing
-# v1configjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
-newconfigjson = {"version": version, "keywords": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
+version = '2.0.0beta'
+auto_update = False # set to False during maintenance / developing
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
                                                 # may also skip some still alive threads that have just dropped off the catalog
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
-glowiebypass = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
+plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
 num_download_threads = 4
+
+################################################################################
+
+def new_config():
+    global version
+    # v1configjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
+    # v2aconfigjson = {"version": version, "keywords": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
+    return {"version_created":version, "boards":{}}
+
+################################################################################
+
+def possible_new_board(boardcode):
+    if not boardcode in configjson["boards"]:
+        configjson["boards"][boardcode] = {"keywords":[], "blacklist":[], "requests":[], "active":[], "doneops":[]}
 
 ################################################################################
 
@@ -185,7 +197,7 @@ def scrapethread(boardcode,threadopno,keyword,scrapednos,padding):
 ################################################################################
 
 def getfilelist(boardcode,threadopno,keyword,modus):
-    global plebboards,glowiebypass
+    global plebboards,plebsHTTPHeader
 
     if modus == '4chan':
         try:
@@ -211,7 +223,7 @@ def getfilelist(boardcode,threadopno,keyword,modus):
     elif modus == '4plebs':
         try:
             threadjson_url = "http://archive.4plebs.org/_/api/chan/thread/?board={}&num={}".format(boardcode,str(threadopno))
-            threadjson_file = urllib.request.urlopen(urllib.request.Request(threadjson_url,None,{'User-Agent':glowiebypass}))
+            threadjson_file = urllib.request.urlopen(urllib.request.Request(threadjson_url,None,{'User-Agent':plebsHTTPHeader}))
             threadjson = json.load(threadjson_file)
             if 'error' in threadjson:
                 if threadjson['error'] == 'Thread not found.':
@@ -311,51 +323,54 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
 ################################################################################
 
 def viewscraping():
-    if not configjson["keywords"]:
+    nonemptyBoards_keywords = [b for b in configjson["boards"] if configjson["boards"][b]["keywords"]]
+    if not nonemptyBoards_keywords:
         print("Currently not scraping any boards")
     else:
         print("Currently scraping:")
-        for board in configjson["keywords"]:
-            print("/{}/:".format(board),end=" ")
-            for keyword in configjson["keywords"][board][:-1]:
-                print("'{}',".format(keyword),end=" ")
-            print("\'{}\'".format(configjson["keywords"][board][-1]))
+        for board in nonemptyBoards_keywords:
+            print("/{}/: ".format(board),end="")
+            for keyword in configjson["boards"][board]["keywords"][:-1]:
+                print(keyword,end=", ")
+            print(configjson["boards"][board]["keywords"][-1])
 
 ################################################################################
 
 def viewrequests():
-    if not configjson["specialrequests"]:
+    nonemptyBoards_requests = [b for b in configjson["boards"] if configjson["boards"][b]["requests"]]
+    if not nonemptyBoards_requests:
         print("Currently no special requests")
     else:
         print("Current special requests:")
-        for req in configjson["specialrequests"]:
-            print("/{}/:{}:{}".format(req[0],str(req[1]),req[2]))
+        for board in nonemptyBoards_requests:
+            for req in configjson["boards"][board]["requests"]:
+                print("/{}/:{}:{}".format(board,str(req[0]),req[1]))
 
 ################################################################################
 
 def viewblacklisting():
-    nonemptyblbs = [blb for blb in configjson["blacklistedopnos"] if configjson["blacklistedopnos"][blb]]
-    if not nonemptyblbs:
+    nonemptyBoards_blacklist = [b for b in configjson["boards"] if configjson["boards"][b]["blacklist"]]
+    if not nonemptyBoards_blacklist:
         print("Currently not blacklisting any threads")
     else:
         print("Currently blacklisting:")
-        for blb in nonemptyblbs:
-            print("/{}/:".format(blb),end=" ")
-            for opno in configjson["blacklistedopnos"][blb][:-1]:
+        for board in nonemptyBoards_blacklist:
+            print("/{}/: ".format(board),end="")
+            for opno in configjson["boards"][board]["blacklist"][:-1]:
                 print(str(opno),end=", ")
-            print(str(configjson["blacklistedopnos"][blb][-1]))
+            print(str(configjson["boards"][board]["blacklist"][-1]))
 
 ################################################################################
 
 def plebrequest(boardcode,keyword):
-    global boxestocheckfor,glowiebypass,configjson
+    global boxestocheckfor,plebsHTTPHeader,configjson
     print("Searching 4plebs archive for threads on /{}/ containing \'{}\'".format(boardcode,keyword))
     opnos = []
-    for search_option in boxestocheckfor["4plebs"]:
-        searchjson_url = 'http://archive.4plebs.org/_/api/chan/search/?type=op&boards={}&{}={}'.format(boardcode,search_option,keyword.replace(" ","%20"))
+    for boxtocheckfor in boxestocheckfor["4plebs"]:
+        searchjson_url = 'http://archive.4plebs.org/_/api/chan/search/?type=op&boards={}&{}={}'.format(boardcode,boxtocheckfor,keyword.replace(" ","%20"))
         cooldown_loop = True
         while cooldown_loop:
-            searchjson_file = urllib.request.urlopen(urllib.request.Request(searchjson_url,None,{'User-Agent':glowiebypass}))
+            searchjson_file = urllib.request.urlopen(urllib.request.Request(searchjson_url,None,{'User-Agent':plebsHTTPHeader}))
             searchjson = json.load(searchjson_file)
             if "error" in searchjson:
                 if searchjson["error"] == "No results found.":
@@ -369,9 +384,9 @@ def plebrequest(boardcode,keyword):
                     opnos.append(int(post["num"]))
                 cooldown_loop = False
 
-    opnos = list(set(opnos).difference(set([req[1] for req in configjson["specialrequests"]])))
+    opnos = list(set(opnos).difference(set([req[0] for req in configjson["boards"][boardcode]["requests"]])))
     for opno in opnos:
-        configjson["specialrequests"].append([boardcode,opno,keyword,[]])
+        configjson["boards"][boardcode]["requests"].append([opno,keyword,[]])
     if opnos:
         opnos_len = len(opnos)
         print("Added {} special request{}".format(opnos_len,"" if opnos_len==1 else "s"))
@@ -511,7 +526,7 @@ if os.path.exists('scraperconfig.json'):
     with open('scraperconfig.json') as configjson_file:
         configjson = json.load(configjson_file)
 else:
-    configjson = newconfigjson
+    configjson = new_config()
     saveconfig()
     print("\nCreated config file 'scraperconfig.json'")
 
@@ -536,8 +551,8 @@ while True:
 
     elif action in ["REQUEST","R"]:
         viewrequests()
-        requestboard = input("\nWhich board is the thread on? ").lower().strip()
-        if not requestboard:
+        board = input("\nWhich board is the thread on? ").lower().strip()
+        if not board:
             print("No board supplied")
             continue
         try:
@@ -545,24 +560,23 @@ while True:
         except:
             print("Error: Invalid number")
             continue
-        alreadyreq = [req for req in configjson["specialrequests"] if [req[0],req[1]] == [requestboard,requestopno]]
+        possible_new_board(board)
+        alreadyreq = [req for req in configjson["boards"][board]["requests"] if req[0] == requestopno]
         if alreadyreq:
             for req in alreadyreq:
-                configjson["specialrequests"].remove(req)
-                print("Thread /{}/:{}:{} removed from special requests".format(req[0],str(req[1]),req[2]))
+                configjson["boards"][board]["requests"].remove(req)
+                print("Thread /{}/:{}:{} removed from special requests".format(board,str(req[0]),req[1]))
         else:
-            requestkeyword = input("What keyword(s) to tag folder with? ").lower().replace("_"," ").strip()
-            if not requestkeyword:
-                requestkeyword = "request"
-            if not requestboard in configjson["scrapednos"]:
-                configjson["scrapednos"][requestboard] = {"doneops": [], "active": []}
-            configjson["specialrequests"].append([requestboard,requestopno,requestkeyword,[]])
-            print("Thread /{}/:{}:{} added to special requests".format(requestboard,str(requestopno),requestkeyword))
+            keyword = input("What keyword(s) to tag folder with? ").lower().replace("_"," ").strip()
+            if not keyword:
+                keyword = "request"
+            configjson["boards"][board]["requests"].append([requestopno,keyword,[]])
+            print("Thread /{}/:{}:{} added to special requests".format(board,str(requestopno),keyword))
         saveconfig()
 
     elif action in ["PLEBREQUEST","P","PR"]:
-        #put in reminder of 1 min cooldown
-        plebrequest_board = input("What board to search on? ").lower().strip()
+        viewrequests()
+        plebrequest_board = input("\nWhat board to search on? ").lower().strip()
         if not plebrequest_board:
             print("No board supplied")
             continue
@@ -570,6 +584,7 @@ while True:
         if not plebrequest_keyword:
             print("No keyword supplied")
             continue
+        possible_new_board(plebrequest_board)
         plebrequest(plebrequest_board,plebrequest_keyword)
         saveconfig()
 
@@ -654,8 +669,8 @@ while True:
         if not configjson["keywords"][boardtomodify]:
             print("Stopped scraping /{}/".format(boardtomodify))
             del configjson["keywords"][boardtomodify]
-            # if not configjson["blacklistedopnos"][boardtomodify]:
-            #     del configjson["blacklistedopnos"][boardtomodify]
+            if not configjson["blacklistedopnos"][boardtomodify]:
+                del configjson["blacklistedopnos"][boardtomodify]
             # if not configjson["scrapednos"][boardtomodify]["doneops"] and not configjson["scrapednos"][boardtomodify]["active"]:
             #     del configjson["scrapednos"][boardtomodify]
         else:
