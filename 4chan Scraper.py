@@ -326,6 +326,7 @@ def viewscraping():
     nonemptyBoards_keywords = [b for b in configjson["boards"] if configjson["boards"][b]["keywords"]]
     if not nonemptyBoards_keywords:
         print("Currently not scraping any boards")
+        return False
     else:
         print("Currently scraping:")
         for board in nonemptyBoards_keywords:
@@ -590,8 +591,8 @@ while True:
 
     elif action in ["BLACKLIST","B","BLACK","BL"]:
         viewblacklisting()
-        blacklistboard = input("\nWhich board is the thread on? ").lower().strip()
-        if not blacklistboard:
+        board = input("\nWhich board is the thread on? ").lower().strip()
+        if not board:
             print("No board supplied")
             continue
         try:
@@ -599,14 +600,13 @@ while True:
         except:
             print("Error: Invalid number")
             continue
-        if not blacklistboard in configjson["blacklistedopnos"]:
-            configjson["blacklistedopnos"][blacklistboard]=[]
-        if not blacklistopno in configjson["blacklistedopnos"][blacklistboard]:
-            configjson["blacklistedopnos"][blacklistboard].append(blacklistopno)
-            print("Now blacklisting /{}/:{}".format(blacklistboard,str(blacklistopno)))
+        possible_new_board(board)
+        if blacklistopno in configjson["boards"][board]["blacklist"]:
+            configjson["boards"][board]["blacklist"].remove(blacklistopno)
+            print("No longer blacklisting /{}/:{}".format(board,str(blacklistopno)))
         else:
-            configjson["blacklistedopnos"][blacklistboard].remove(blacklistopno)
-            print("No longer blacklisting /{}/:{}".format(blacklistboard,str(blacklistopno)))
+            configjson["boards"][board]["blacklist"].append(blacklistopno)
+            print("Now blacklisting /{}/:{}".format(board,str(blacklistopno)))
         saveconfig()
 
     elif action in ["VIEW","V"]:
@@ -618,66 +618,57 @@ while True:
 
     elif action in ["ADD","A"]:
         viewscraping()
-        boardtomodify = input("\nWhich board to add keywords to? ").lower().strip()
-        if not boardtomodify:
+        board = input("\nWhich board to add keywords to? ").lower().strip()
+        if not board:
             print("No board supplied")
             continue
         keywordstoadd = input("Which keywords to start scraping for? ").lower().split()
         keywordstoadd = [keyword.replace("_"," ").strip() for keyword in keywordstoadd if keyword.replace("_"," ").strip() != ""]
-        if not keywordstoadd:
-            if boardtomodify in configjson["keywords"]:
-                print("No more keywords added for /{}/".format(boardtomodify))
-            else:
-                print("No keywords added for /{}/, not scraping it".format(boardtomodify))
-            continue
-        if not boardtomodify in configjson["keywords"]:
-            configjson["keywords"][boardtomodify]=[]
-        if not boardtomodify in configjson["scrapednos"]:
-            configjson["scrapednos"][boardtomodify] = {"doneops": [], "active": []}
-        if not boardtomodify in configjson["blacklistedopnos"]:
-            configjson["blacklistedopnos"][boardtomodify] = []
+        possible_new_board(board)
+        addedcounter = 0
         for keyword in keywordstoadd:
-            if not keyword in configjson["keywords"][boardtomodify]:
-                configjson["keywords"][boardtomodify].append(keyword)
-        configjson["keywords"][boardtomodify] = sorted(configjson["keywords"][boardtomodify])
-        print("Keywords for /{}/ updated to:".format(boardtomodify),end=" ")
-        for keyword in configjson["keywords"][boardtomodify][:-1]:
-            print("'{}',".format(keyword),end=" ")
-        print("'{}'".format(configjson["keywords"][boardtomodify][-1]))
+            if not keyword in configjson["boards"][board]["keywords"]:
+                configjson["boards"][board]["keywords"].append(keyword)
+                addedcounter += 1
+        configjson["boards"][board]["keywords"] = sorted(configjson["boards"][board]["keywords"])
+        if addedcounter == 0:
+            if not configjson["boards"][board]["keywords"]:
+                print("No keywords added for /{}/, not scraping it".format(board))
+            else:
+                print("No more keywords added for /{}/".format(board))
+        else:
+            print("Keywords for /{}/ updated to: ".format(board),end="")
+            for keyword in configjson["boards"][board]["keywords"][:-1]:
+                print(keyword,end=", ")
+            print(configjson["boards"][board]["keywords"][-1])
         saveconfig()
 
     elif action in ["DELETE","DEL","D"]:
-        if not configjson["keywords"]:
-            print("Currently not scraping any boards")
+        if viewscraping() is False:
             continue
-        viewscraping()
-        boardtomodify = input("\nWhich board to delete keywords from? ").lower().strip()
-        if not boardtomodify:
+        board = input("\nWhich board to delete keywords from? ").lower().strip()
+        if not board:
             print("No board supplied")
             continue
-        if not boardtomodify in configjson["keywords"]:
-            print("Currently not scraping /{}/".format(boardtomodify))
+        if not board in configjson["boards"] or not configjson["boards"][board]:
+            print("Currently not scraping /{}/".format(board))
             continue
         keywordstodel = input("Which keywords to stop scraping for? ").lower().split()
         keywordstodel = [keyword.replace("_"," ").strip() for keyword in keywordstodel if keyword.replace("_"," ").strip() != ""]
-        if not keywordstodel:
-            print("No keywords removed for /{}/".format(boardtomodify))
-            continue
+        delcounter = 0
         for keyword in keywordstodel:
-            if keyword in configjson["keywords"][boardtomodify]:
-                configjson["keywords"][boardtomodify].remove(keyword)
-        if not configjson["keywords"][boardtomodify]:
-            print("Stopped scraping /{}/".format(boardtomodify))
-            del configjson["keywords"][boardtomodify]
-            if not configjson["blacklistedopnos"][boardtomodify]:
-                del configjson["blacklistedopnos"][boardtomodify]
-            # if not configjson["scrapednos"][boardtomodify]["doneops"] and not configjson["scrapednos"][boardtomodify]["active"]:
-            #     del configjson["scrapednos"][boardtomodify]
+            if keyword in configjson["boards"][board]["keywords"]:
+                configjson["boards"][board]["keywords"].remove(keyword)
+                delcounter += 1
+        if delcounter == 0:
+            print("No keywords removed for /{}/".format(board))
+        elif not configjson["boards"][board]["keywords"]:
+            print("Stopped scraping /{}/".format(board))
         else:
-            print("Keywords for /{}/ updated to:".format(boardtomodify),end=" ")
-            for keyword in configjson["keywords"][boardtomodify][:-1]:
-                print("'{}',".format(keyword),end=" ")
-            print("'{}'".format(configjson["keywords"][boardtomodify][-1]))
+            print("Keywords for /{}/ updated to: ".format(board),end="")
+            for keyword in configjson["boards"][board]["keywords"][:-1]:
+                print(keyword,end=", ")
+            print(configjson["boards"][board]["keywords"][-1])
         saveconfig()
 
     else:
