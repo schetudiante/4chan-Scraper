@@ -11,9 +11,10 @@ import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached, restart delay
 
-version = '1.6.1'
-auto_update = True #set to False during maintenance / developing
-newconfigjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
+version = '2.0.0alpha' # big revision to scraper config format
+auto_update = False #set to False during maintenance / developing
+# v1configjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
+newconfigjson = {"version": version, "keywords": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
                                                 # may also skip some still alive threads that have just dropped off the catalog
@@ -28,18 +29,27 @@ def scrape():
         print("Currently no special requests")
     else:
         print("~Doing special requests~")
+        for req in configjson["specialrequests"]:
+            if req[1] in configjson["scrapednos"][req[0]]["doneops"]:
+                print("Already scraped /{}/:{}:{}".format(req[0],str(req[1]),req[2]))
+        configjson["specialrequests"] = [req for req in configjson["specialrequests"] if not req[1] in configjson["scrapednos"][req[0]]["doneops"]]
         maxsize = max([len(srq[0])+len(str(srq[1]))+len(srq[2]) for srq in configjson["specialrequests"]])
-        srqwithpad = [[srq[0],srq[1],srq[2],maxsize-(len(srq[0])+len(str(srq[1]))+len(srq[2]))] for srq in configjson["specialrequests"]]
-        configjson["specialrequests"] = [srqp[:-1] for srqp in srqwithpad if scrapethread(*srqp)=='keep']
+        srqs_padded = [srq+[maxsize-(len(srq[0])+len(str(srq[1]))+len(srq[2]))] for srq in configjson["specialrequests"]]
+        configjson["specialrequests"] = []
+        for srqp in srqs_padded:
+            result = scrapethread(*srqp)
+            if result[0] == 'keep':
+                configjson["specialrequests"].append([srqp[0],srqp[1],srqp[2],result[1]])
+            else:
+                configjson["scrapednos"][srqp[0]]["doneops"].insert(0,srqp[1])
+
     print()
     if not configjson["keywords"]:
         print("Currently not scraping any boards\n")
     else:
-        reqignorelist = [srq[1] for srq in configjson["specialrequests"]]
         for boardcode in configjson["keywords"]:
-            configjson["lastscrapeops"][boardcode]=scrapeboard(boardcode,configjson["keywords"][boardcode],configjson["lastscrapeops"][boardcode],configjson["blacklistedopnos"][boardcode]+reqignorelist)
+            configjson["scrapednos"][boardcode] = scrapeboard(configjson["scrapednos"][boardcode],boardcode,configjson["keywords"][boardcode],configjson["blacklistedopnos"][boardcode]+[srq[1] for srq in configjson["specialrequests"] if srq[0] == boardcode])
             print()
-    maintenance()
     print("~Updating config~")
     saveconfig()
     print("~Config updated~")
@@ -47,49 +57,51 @@ def scrape():
 
 ################################################################################
 
-def scrapeboard(boardcode,keywords,lastscrapeops,ignorelist):
+def scrapeboard(scrapednosdic,boardcode,keywords,ignoreops):
     global boxestocheckfor
-    threadstoscrape = [lsop for lsop in lastscrapeops if not lsop[0] in ignorelist and lsop[1] in keywords]
+    threadstoscrape = [t for t in scrapednosdic["active"] if not t[0] in ignoreops and t[1] in keywords]
+    alreadyConsidered = ignoreops + [t[0] for t in threadstoscrape] + scrapednosdic["doneops"]
     #Board Catalog JSON
     try:
         print("~Getting JSON for catalog of /{}/~".format(boardcode))
         catalogjson_url = ("https://a.4cdn.org/{}/catalog.json".format(boardcode))
         catalogjson_file = urllib.request.urlopen(catalogjson_url)
         catalogjson = json.load(catalogjson_file)
-        threadsgathered = []
-        #Search each thread for keywords and append to list for scraping
+        #Search ops not considered already
         for page in catalogjson:
             for threadop in page["threads"]:
-                if not threadop["no"] in ignorelist:
+                if not threadop["no"] in alreadyConsidered:
                     boxbreak=0
                     boxestocheck=[b for b in boxestocheckfor["4chan"] if b in threadop]
                     for boxtocheck in boxestocheck:
                         for keyword in keywords:
                             if keyword in threadop[boxtocheck].lower():
-                                threadsgathered.append([threadop["no"],keyword])
+                                threadstoscrape.append([threadop["no"],keyword,[]])
                                 boxbreak=1
                                 break
                         if boxbreak==1:
                             break
-        threadstoscrape += [tg for tg in threadsgathered if not tg[0] in [tts[0] for tts in threadstoscrape]]
     except:
         print("Error: Cannot load catalog for /{}/".format(boardcode))
 
-    scrapedactiveops = []
+    scrapednosdic_return = {"doneops":scrapednosdic["doneops"], "active":[]}
     if threadstoscrape:
         #Compute padding for progress bar placement:
-        maxsize = max([len(str(tts[0]))+len(tts[1]) for tts in threadstoscrape])
-        ttswithpad = [[tts[0],tts[1],maxsize-(len(str(tts[0]))+len(tts[1]))] for tts in threadstoscrape]
+        maxsize = max([len(str(t[0]))+len(t[1]) for t in threadstoscrape])
+        threadstoscrape_padded = [t+[maxsize-(len(str(t[0]))+len(t[1]))] for t in threadstoscrape]
         #Actually do the scraping now
-        for ttst in ttswithpad:
-            if scrapethread(boardcode,*ttst) == 'keep':
-                scrapedactiveops.append(ttst[:-1])
+        for ttsp in threadstoscrape_padded:
+            result = scrapethread(boardcode,*ttsp)
+            if result[0] == 'keep':
+                scrapednosdic_return["active"].append([ttsp[0],ttsp[1],result[1]])
+            else:
+                scrapednosdic_return["doneops"].insert(0,ttsp[0])
 
-    return scrapedactiveops
+    return scrapednosdic_return
 
 ################################################################################
 
-def scrapethread(boardcode,threadopno,keyword,padding):
+def scrapethread(boardcode,threadopno,keyword,scrapednos,padding):
     global lock
     filelist = getfilelist(boardcode,threadopno,keyword,'4chan')
     filestart = 0
@@ -97,7 +109,8 @@ def scrapethread(boardcode,threadopno,keyword,padding):
         filelist = getfilelist(boardcode,threadopno,keyword,'4plebs')
         filestart = 1
     if filelist[0] in ['keep','delete']:
-        return filelist[0]
+        return [filelist[0],scrapednos]
+    #otherwise 'success'
     impostslist = filelist[1]
 
     #Try to create folder
@@ -106,7 +119,7 @@ def scrapethread(boardcode,threadopno,keyword,padding):
         os.makedirs(threadaddress,exist_ok=True)
     except:
         print("Error: failed to create folder '{}'".format(threadaddress))
-        return 'keep'
+        return ['keep',scrapednos]
 
     #Scrape files
     progressmsg.progmsg(msg="Scraping /{}/:{}:{} {}".format(boardcode,str(threadopno),keyword,' '*padding),of=len(impostslist))
@@ -119,7 +132,7 @@ def scrapethread(boardcode,threadopno,keyword,padding):
             with lock:
                 try:
                     postbuffers[dtid] = impostslist.pop(0)
-                    if int(postbuffers[dtid]["no"]) in configjson["scrapednos"][boardcode]:
+                    if int(postbuffers[dtid]["no"]) in scrapednos:
                         progressmsg.tick()
                         continue
                 except:
@@ -136,7 +149,7 @@ def scrapethread(boardcode,threadopno,keyword,padding):
                 result = scrapefile(threadaddress,postbuffers[dtid],modus,boardcode,threadopno,keyword)
                 with lock:
                     if result == 'success':
-                        configjson["scrapednos"][boardcode].insert(0,int(postbuffers[dtid]["no"]))
+                        scrapednos.append(int(postbuffers[dtid]["no"]))
                         progressmsg.tick()
                         break
                     elif result == 'keep':
@@ -165,9 +178,9 @@ def scrapethread(boardcode,threadopno,keyword,padding):
             print("Error: Could not delete folder '{}'".format(threadaddress))
 
     if keepflag == 0 and (filestart!=0 or filelist[2] == True):
-        return 'delete'
+        return ['delete']
     else:
-        return 'keep'
+        return ['keep',scrapednos]
 
 ################################################################################
 
@@ -180,7 +193,7 @@ def getfilelist(boardcode,threadopno,keyword,modus):
             threadjson_file = urllib.request.urlopen(threadjson_url)
             threadjson = json.load(threadjson_file)
             impostslist = [{"no":post['no'],"tim":post['tim'],"ext":post['ext']} for post in threadjson["posts"] if "tim" in post]
-            return ['success',impostslist,'archived' in threadjson["posts"][0]]
+            return ['now_scrape',impostslist,'archived' in threadjson["posts"][0]]
         except Exception as e:
             #Thread error:
             if hasattr(e,'code') and e.code == 404: # pylint: disable=E1101
@@ -212,7 +225,7 @@ def getfilelist(boardcode,threadopno,keyword,modus):
                 for postvalue in threadjson[str(threadopno)]["posts"].values():
                     if postvalue["media"] != None:
                         impostslist.append({"no":str(postvalue["num"]),"tim":os.path.splitext(postvalue["media"]["media"])[0],"ext":os.path.splitext(postvalue["media"]["media"])[1]})
-            return ['success',impostslist]
+            return ['now_scrape',impostslist]
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
                 print("Thread /{}/:{}:{} not found on 4plebs".format(boardcode,str(threadopno),keyword))
@@ -358,27 +371,12 @@ def plebrequest(boardcode,keyword):
 
     opnos = list(set(opnos).difference(set([req[1] for req in configjson["specialrequests"]])))
     for opno in opnos:
-        configjson["specialrequests"].append([boardcode,opno,keyword])
+        configjson["specialrequests"].append([boardcode,opno,keyword,[]])
     if opnos:
-        print("Added {} special requests".format(len(opnos)))
+        opnos_len = len(opnos)
+        print("Added {} special request{}".format(opnos_len,"" if opnos_len==1 else "s"))
     else:
         print("No more special requests added")
-
-################################################################################
-
-def maintenance():
-    print("~Performing maintenance~")
-    for board in configjson['keywords']:
-        configjson['keywords'][board] = sorted(configjson['keywords'][board])
-    for board in configjson['blacklistedopnos']:
-        configjson['blacklistedopnos'][board] = sorted(list(set(configjson['blacklistedopnos'][board])),reverse=True)
-    for board in configjson['scrapednos']:
-        configjson['scrapednos'][board] = sorted(list(set(configjson['scrapednos'][board])),reverse=True)
-    for board in configjson['lastscrapeops']:
-        lastscrapeops_set = set(map(tuple,configjson['lastscrapeops'][board]))
-        lastscrapeops_gen = map(list,lastscrapeops_set)
-        configjson['lastscrapeops'][board] = [x for x in lastscrapeops_gen]
-    print("~Maintenance complete~")
 
 ################################################################################
 
@@ -437,7 +435,7 @@ class class_progressmsg():
 
 ################################################################################
 
-def update():
+def update_scraper():
     def download_update(downloadVersion):
         try:
             fpath = os.path.realpath(__file__)
@@ -475,6 +473,24 @@ def update():
 
 ################################################################################
 
+def printhelp():
+        print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made. 4plebs is also sourced")
+        print("The file 'scraperconfig.json' stores the program's config in the program's directory")
+        print("Scraped files are saved in nested directories in the same directory as the program\n")
+
+        print("SCRAPE      /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
+        print("SCRAPEQUIT  / SQ: Scrapes then closes the program")
+        print("REQUEST     /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
+        print("PLEBREQUEST /  P: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests")
+        print("BLACKLIST   /  B: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
+        print("VIEW        /  V: View the keywords that are currently being searched for")
+        print("ADD         /  A: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
+        print("DELETE      /  D: Delete keywords to no longer search for")
+        print("HELP        /  H: Shows this help text")
+        print("QUIT        /  Q: Closes the program")
+
+################################################################################
+
 #Main Thread Here
 
 lock = threading.Lock()
@@ -488,7 +504,7 @@ print('~~~~~Version {}~~~~~'.format(version))
 #Check for updates
 if auto_update is True:
     print()
-    update()
+    update_scraper()
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.json'):
@@ -509,20 +525,7 @@ while True:
         break
 
     elif action in ["HELP","H"]:
-        print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made. 4plebs is also sourced")
-        print("The file 'scraperconfig.json' stores the program's config in the program's directory")
-        print("Scraped files are saved in nested directories in the same directory as the program\n")
-
-        print("SCRAPE      /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
-        print("SCRAPEQUIT  / SQ: Scrapes then closes the program")
-        print("REQUEST     /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
-        print("PLEBREQUEST /  P: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests")
-        print("BLACKLIST   /  B: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
-        print("VIEW        /  V: View the keywords that are currently being searched for")
-        print("ADD         /  A: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
-        print("DELETE      /  D: Delete keywords to no longer search for")
-        print("HELP        /  H: Shows this help text")
-        print("QUIT        /  Q: Closes the program")
+        printhelp()
 
     elif action in ["SCRAPE","S"]:
         scrape()
@@ -542,7 +545,7 @@ while True:
         except:
             print("Error: Invalid number")
             continue
-        alreadyreq = [req for req in configjson['specialrequests'] if [req[0],req[1]] == [requestboard,requestopno]]
+        alreadyreq = [req for req in configjson["specialrequests"] if [req[0],req[1]] == [requestboard,requestopno]]
         if alreadyreq:
             for req in alreadyreq:
                 configjson["specialrequests"].remove(req)
@@ -552,10 +555,9 @@ while True:
             if not requestkeyword:
                 requestkeyword = "request"
             if not requestboard in configjson["scrapednos"]:
-                configjson["scrapednos"][requestboard]=[]
-            if not [requestboard,requestopno,requestkeyword] in configjson["specialrequests"]:
-                configjson["specialrequests"].append([requestboard,requestopno,requestkeyword])
-                print("Thread /{}/:{}:{} added to special requests".format(requestboard,str(requestopno),requestkeyword))
+                configjson["scrapednos"][requestboard] = {"doneops": [], "active": []}
+            configjson["specialrequests"].append([requestboard,requestopno,requestkeyword,[]])
+            print("Thread /{}/:{}:{} added to special requests".format(requestboard,str(requestopno),requestkeyword))
         saveconfig()
 
     elif action in ["PLEBREQUEST","P","PR"]:
@@ -615,15 +617,14 @@ while True:
             continue
         if not boardtomodify in configjson["keywords"]:
             configjson["keywords"][boardtomodify]=[]
-        if not boardtomodify in configjson["lastscrapeops"]:
-            configjson["lastscrapeops"][boardtomodify]=[]
-        if not boardtomodify in configjson["blacklistedopnos"]:
-            configjson["blacklistedopnos"][boardtomodify]=[]
         if not boardtomodify in configjson["scrapednos"]:
-            configjson["scrapednos"][boardtomodify]=[]
+            configjson["scrapednos"][boardtomodify] = {"doneops": [], "active": []}
+        if not boardtomodify in configjson["blacklistedopnos"]:
+            configjson["blacklistedopnos"][boardtomodify] = []
         for keyword in keywordstoadd:
             if not keyword in configjson["keywords"][boardtomodify]:
                 configjson["keywords"][boardtomodify].append(keyword)
+        configjson["keywords"][boardtomodify] = sorted(configjson["keywords"][boardtomodify])
         print("Keywords for /{}/ updated to:".format(boardtomodify),end=" ")
         for keyword in configjson["keywords"][boardtomodify][:-1]:
             print("'{}',".format(keyword),end=" ")
@@ -653,6 +654,10 @@ while True:
         if not configjson["keywords"][boardtomodify]:
             print("Stopped scraping /{}/".format(boardtomodify))
             del configjson["keywords"][boardtomodify]
+            # if not configjson["blacklistedopnos"][boardtomodify]:
+            #     del configjson["blacklistedopnos"][boardtomodify]
+            # if not configjson["scrapednos"][boardtomodify]["doneops"] and not configjson["scrapednos"][boardtomodify]["active"]:
+            #     del configjson["scrapednos"][boardtomodify]
         else:
             print("Keywords for /{}/ updated to:".format(boardtomodify),end=" ")
             for keyword in configjson["keywords"][boardtomodify][:-1]:

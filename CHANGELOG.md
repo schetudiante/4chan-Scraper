@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.0.0alpha (WIP)
+- Major revamp of how the config stores scraped threads: cut size of config file / search times significantly
+- Fix bug of threads with same op number as a special request not being scraped regardless of board
+- Removed the need for maintenance at all due to new optimised config
+
 ## v1.6.1
 - Removed `MAINTENANCE` option from main menu; maintenance is now fully automated and is only done after scraping
 
