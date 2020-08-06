@@ -11,7 +11,7 @@ import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached, restart delay
 
-version = '2.0.0beta'
+version = '2.0.0pre1'
 auto_update = False # set to False during maintenance / developing
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
@@ -33,34 +33,44 @@ def new_config():
 def possible_new_board(boardcode):
     if not boardcode in configjson["boards"]:
         configjson["boards"][boardcode] = {"keywords":[], "blacklist":[], "requests":[], "active":[], "doneops":[]}
+        # active example [opno,keyword,[]]
 
 ################################################################################
 
 def scrape():
-    if not configjson["specialrequests"]:
+    nonemptyBoards_requests = [b for b in configjson["boards"] if configjson["boards"][b]["requests"]]
+    if not nonemptyBoards_requests:
         print("Currently no special requests")
     else:
         print("~Doing special requests~")
-        for req in configjson["specialrequests"]:
-            if req[1] in configjson["scrapednos"][req[0]]["doneops"]:
-                print("Already scraped /{}/:{}:{}".format(req[0],str(req[1]),req[2]))
-        configjson["specialrequests"] = [req for req in configjson["specialrequests"] if not req[1] in configjson["scrapednos"][req[0]]["doneops"]]
-        maxsize = max([len(srq[0])+len(str(srq[1]))+len(srq[2]) for srq in configjson["specialrequests"]])
-        srqs_padded = [srq+[maxsize-(len(srq[0])+len(str(srq[1]))+len(srq[2]))] for srq in configjson["specialrequests"]]
-        configjson["specialrequests"] = []
-        for srqp in srqs_padded:
-            result = scrapethread(*srqp)
-            if result[0] == 'keep':
-                configjson["specialrequests"].append([srqp[0],srqp[1],srqp[2],result[1]])
-            else:
-                configjson["scrapednos"][srqp[0]]["doneops"].insert(0,srqp[1])
+        requestsToDo = []
+        for board in nonemptyBoards_requests:
+            for req in configjson["boards"][board]["requests"]:
+                if req[0] in configjson["boards"][board]["doneops"]:
+                    print("Already scraped /{}/:{}:{}".format(board,str(req[0]),req[1]))
+                    continue
+                else:
+                    requestsToDo.append([board,req[0],req[1],req[2],len(board)+len(str(req[0]))+len(req[1])])
+            configjson["boards"][board]["requests"] = []
+        if requestsToDo:
+            maxpad = max([rtd[4] for rtd in requestsToDo])
+            for rtd in requestsToDo:
+                rtd[4] = maxpad - rtd[4]
+                result = scrapethread(*rtd)
+                if result[0] == 'keep':
+                    configjson["boards"][rtd[0]]["requests"].append([rtd[1],rtd[2],result[1]])
+                else:
+                    configjson["boards"][rtd[0]]["doneops"].insert(0,rtd[1])
 
     print()
-    if not configjson["keywords"]:
+    nonemptyBoards_keywords = [b for b in configjson["boards"] if configjson["boards"][b]["keywords"]]
+    if not nonemptyBoards_keywords:
         print("Currently not scraping any boards\n")
     else:
-        for boardcode in configjson["keywords"]:
-            configjson["scrapednos"][boardcode] = scrapeboard(configjson["scrapednos"][boardcode],boardcode,configjson["keywords"][boardcode],configjson["blacklistedopnos"][boardcode]+[srq[1] for srq in configjson["specialrequests"] if srq[0] == boardcode])
+        for board in nonemptyBoards_keywords:
+            [all_doneops,all_active] = scrapeboard(board,configjson["boards"][board]["keywords"],configjson["boards"][board]["blacklist"],configjson["boards"][board]["active"],configjson["boards"][board]["doneops"])
+            configjson["boards"][board]["doneops"] = all_doneops
+            configjson["boards"][board]["active"] = all_active
             print()
     print("~Updating config~")
     saveconfig()
@@ -69,10 +79,15 @@ def scrape():
 
 ################################################################################
 
-def scrapeboard(scrapednosdic,boardcode,keywords,ignoreops):
+def scrapeboard(boardcode,keywords,blacklist,active,doneops):
     global boxestocheckfor
-    threadstoscrape = [t for t in scrapednosdic["active"] if not t[0] in ignoreops and t[1] in keywords]
-    alreadyConsidered = ignoreops + [t[0] for t in threadstoscrape] + scrapednosdic["doneops"]
+    alreadyConsidered_opnos = blacklist + doneops
+
+    #Check if current active are still what we want
+    threadstoscrape = [t for t in active if not t[0] in alreadyConsidered_opnos and t[1] in keywords]
+    alreadyConsidered_opnos += [t[0] for t in threadstoscrape]
+    active = []
+
     #Board Catalog JSON
     try:
         print("~Getting JSON for catalog of /{}/~".format(boardcode))
@@ -82,7 +97,7 @@ def scrapeboard(scrapednosdic,boardcode,keywords,ignoreops):
         #Search ops not considered already
         for page in catalogjson:
             for threadop in page["threads"]:
-                if not threadop["no"] in alreadyConsidered:
+                if not threadop["no"] in alreadyConsidered_opnos:
                     boxbreak=0
                     boxestocheck=[b for b in boxestocheckfor["4chan"] if b in threadop]
                     for boxtocheck in boxestocheck:
@@ -96,7 +111,6 @@ def scrapeboard(scrapednosdic,boardcode,keywords,ignoreops):
     except:
         print("Error: Cannot load catalog for /{}/".format(boardcode))
 
-    scrapednosdic_return = {"doneops":scrapednosdic["doneops"], "active":[]}
     if threadstoscrape:
         #Compute padding for progress bar placement:
         maxsize = max([len(str(t[0]))+len(t[1]) for t in threadstoscrape])
@@ -105,11 +119,11 @@ def scrapeboard(scrapednosdic,boardcode,keywords,ignoreops):
         for ttsp in threadstoscrape_padded:
             result = scrapethread(boardcode,*ttsp)
             if result[0] == 'keep':
-                scrapednosdic_return["active"].append([ttsp[0],ttsp[1],result[1]])
+                active.append([ttsp[0],ttsp[1],result[1]])
             else:
-                scrapednosdic_return["doneops"].insert(0,ttsp[0])
+                doneops.insert(0,ttsp[0])
 
-    return scrapednosdic_return
+    return [doneops,active]
 
 ################################################################################
 
