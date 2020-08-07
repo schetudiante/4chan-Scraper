@@ -26,14 +26,20 @@ def new_config():
     global version
     # v1configjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
     # v2aconfigjson = {"version": version, "keywords": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
-    return {"version_created":version, "boards":{}}
+    return {"versioncreated":version, "boards":{}}
+
+################################################################################
+
+def new_board():
+    return {"keywords":[], "blacklist":[], "requests":[], "active":[], "doneops":[]}
+    # active example [opno,keyword,[]]
 
 ################################################################################
 
 def possible_new_board(boardcode):
+    global configjson
     if not boardcode in configjson["boards"]:
-        configjson["boards"][boardcode] = {"keywords":[], "blacklist":[], "requests":[], "active":[], "doneops":[]}
-        # active example [opno,keyword,[]]
+        configjson["boards"][boardcode] = new_board()
 
 ################################################################################
 
@@ -136,7 +142,7 @@ def scrapethread(boardcode,threadopno,keyword,scrapednos,padding):
         filestart = 1
     if filelist[0] in ['keep','delete']:
         return [filelist[0],scrapednos]
-    #otherwise 'success'
+    #otherwise 'now_scrape'
     impostslist = filelist[1]
 
     #Try to create folder
@@ -521,6 +527,79 @@ def printhelp():
 
 ################################################################################
 
+def one_to_two_pt1(configjson_old):
+    print("\nConfig for v1 detected, converting to v2 format...")
+    configjson_new = new_config()
+
+    # 0/5 Add boards to config DEPRACATED - move to individual parts
+    # lookForBoardsIn = [configjson_old["keywords"],configjson_old["lastscrapeops"],configjson_old["blacklistedopnos"],configjson_old["scrapednos"]]
+    # for boardstore in lookForBoardsIn:
+    #     for board in list(boardstore.keys()):
+    #         if not board in configjson_new["boards"]:
+    #             configjson_new["boards"][board] = new_board()
+
+    # 1/5 Transfer keywords
+    for board in configjson_old["keywords"]:
+        if not board in configjson_new["boards"]:
+            configjson_new["boards"][board] = new_board()
+        configjson_new["boards"][board]["keywords"] = configjson_old["keywords"][board]
+
+    # 2/5 Transfer blacklisted opnos
+    for board in configjson_old["blacklistedopnos"]:
+        if not board in configjson_new["boards"]:
+            configjson_new["boards"][board] = new_board()
+        configjson_new["boards"][board]["blacklist"] = configjson_old["blacklistedopnos"][board]
+
+    # 2.5/5 Create Residue section of config for pt2 transfers
+    configjson_new["v1residue"] = {"lastscrapeops":configjson_old["lastscrapeops"],"specialrequests":configjson_old["specialrequests"],"scrapednos":configjson_old["scrapednos"]}
+    for board in configjson_new["v1residue"]["scrapednos"]:
+        configjson_new["v1residue"]["scrapednos"][board] = list(set(configjson_new["v1residue"]["scrapednos"][board]))
+
+    return configjson_new
+
+################################################################################
+
+def one_to_two_pt2(configjson_old):
+    print("\nChecking archives to convert rest of config to v2...")
+
+    # 3/5 Transfer special requests
+    if "specialrequests" in configjson_old["v1residue"]:
+        for req in configjson_old["v1residue"]["specialrequests"]:
+            if not req[0] in configjson_old["boards"]:
+                configjson_old["boards"][req[0]] = new_board()
+        if not "scrapednos" in configjson_old["v1residue"]:
+            for req in configjson_old["v1residue"]["specialrequests"]:
+                configjson_old["boards"][req[0]]["requests"].append([req[1],req[2],[]])
+        else:
+            v1_requests_toKeep = [] # if any 'keep' errors are returned by getfilelist()
+            for req in configjson_old["v1residue"]["specialrequests"]:
+                [board,opno,keyword] = req
+                req_numbers = getfilelist(board,opno,keyword,'4chan')
+                if req_numbers[0] == 'try_4plebs':
+                    req_numbers = getfilelist(board,opno,keyword,'4plebs')
+                if req_numbers[0] == 'keep':
+                    v1_requests_toKeep.append(req)
+                    continue
+                elif req_numbers[0] == 'delete':
+                    continue
+                #otherwise 'now_scrape'
+                req_numbers = [p["no"] for p in req_numbers[1]]
+                req_v2 = [opno,keyword,[]]
+                if board in configjson_old["v1residue"]["scrapednos"]:
+                    for req_number in req_numbers:
+                        if req_number in configjson_old["v1residue"]["scrapednos"][board]:
+                            req_v2[2].append(req_number)
+                            configjson_old["v1residue"]["scrapednos"][board].remove(req_number)
+                configjson_old["boards"][board]["requests"].append(req_v2)
+            configjson_old["v1residue"]["specialrequests"] = v1_requests_toKeep
+        if not configjson_old["v1residue"]["specialrequests"]:
+            del configjson_old["v1residue"]["specialrequests"]
+
+    configjson_new = configjson_old
+    return configjson_new
+
+################################################################################
+
 #Main Thread Here
 
 lock = threading.Lock()
@@ -544,6 +623,14 @@ else:
     configjson = new_config()
     saveconfig()
     print("\nCreated config file 'scraperconfig.json'")
+
+#Convert to v2 if v1 and deal with v1 residue
+if not "versioncreated" in configjson:
+    configjson = one_to_two_pt1(configjson)
+    saveconfig()
+if "v1residue" in configjson:
+    configjson = one_to_two_pt2(configjson)
+    saveconfig()
 
 #Main loop
 while True:

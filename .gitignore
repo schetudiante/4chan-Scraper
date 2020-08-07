@@ -1,4 +1,6 @@
 gitignore Extras/
 scraperconfig.json
-scraperconfigalpha.json
+scraperconfig - backup.json
+scraperconfig_v1blank.json
+exampleplebpost.json
 TODO.md
