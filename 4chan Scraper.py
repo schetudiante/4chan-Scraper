@@ -564,34 +564,33 @@ def one_to_two_pt2(configjson_old):
 
     # 3/5 Transfer special requests
     if "specialrequests" in configjson_old["v1residue"]:
-        for req in configjson_old["v1residue"]["specialrequests"]:
-            if not req[0] in configjson_old["boards"]:
-                configjson_old["boards"][req[0]] = new_board()
-        if not "scrapednos" in configjson_old["v1residue"]:
-            for req in configjson_old["v1residue"]["specialrequests"]:
-                configjson_old["boards"][req[0]]["requests"].append([req[1],req[2],[]])
-        else:
-            v1_requests_toKeep = [] # if any 'keep' errors are returned by getfilelist()
-            for req in configjson_old["v1residue"]["specialrequests"]:
-                [board,opno,keyword] = req
+        for req_old in [t for t in configjson_old["v1residue"]["specialrequests"]]: #stops changing size each iteration
+            [board,opno,keyword] = req_old
+            configjson_old["v1residue"]["specialrequests"].remove(req_old)
+            if not board in configjson_old["boards"]:
+                configjson_old["boards"][board] = new_board()
+            reqs_already = [t for t in configjson_old["boards"][board]["requests"] if t[0] == opno]
+            if reqs_already:
+                req_new = reqs_already[0]
+                configjson_old["boards"][board]["requests"].remove(req_new)
+            else:
+                req_new = [opno,keyword,[]]
+            if "scrapednos" in configjson_old["v1residue"] and board in configjson_old["v1residue"]["scrapednos"]:
                 req_numbers = getfilelist(board,opno,keyword,'4chan')
                 if req_numbers[0] == 'try_4plebs':
                     req_numbers = getfilelist(board,opno,keyword,'4plebs')
-                if req_numbers[0] == 'keep':
-                    v1_requests_toKeep.append(req)
+                if req_numbers[0] == 'delete': # post nos not there
                     continue
-                elif req_numbers[0] == 'delete':
-                    continue
-                #otherwise 'now_scrape'
-                req_numbers = [p["no"] for p in req_numbers[1]]
-                req_v2 = [opno,keyword,[]]
-                if board in configjson_old["v1residue"]["scrapednos"]:
+                elif req_numbers[0] == 'keep': # keep error
+                    configjson_old["v1residue"]["specialrequests"].append(req_old)
+                else:                          # post nos found
+                    req_numbers = [t["no"] for t in req_numbers[1]]
                     for req_number in req_numbers:
                         if req_number in configjson_old["v1residue"]["scrapednos"][board]:
-                            req_v2[2].append(req_number)
+                            req_new[2].append(req_number)
                             configjson_old["v1residue"]["scrapednos"][board].remove(req_number)
-                configjson_old["boards"][board]["requests"].append(req_v2)
-            configjson_old["v1residue"]["specialrequests"] = v1_requests_toKeep
+            req_new[2] = list(set(req_new[2]))
+            configjson_old["boards"][board]["requests"].append(req_new)
         if not configjson_old["v1residue"]["specialrequests"]:
             del configjson_old["v1residue"]["specialrequests"]
 
