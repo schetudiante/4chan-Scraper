@@ -594,6 +594,25 @@ def one_to_two_pt2(configjson_old):
         if not configjson_old["v1residue"]["specialrequests"]:
             del configjson_old["v1residue"]["specialrequests"]
 
+    # 4/5 Transfer last scraped threads
+    if "lastscrapeops" in configjson_old["v1residue"]:
+        for board in [b for b in configjson_old["v1residue"]["lastscrapeops"]]:
+            if not board in configjson_old["boards"]:
+                configjson_old["boards"][board] = new_board()
+            for lastscrapeop in [t for t in configjson_old["v1residue"]["lastscrapeops"][board]]:
+                [opno,keyword] = lastscrapeop
+                configjson_old["v1residue"]["lastscrapeops"][board].remove(lastscrapeop)
+                active_already = [t for t in configjson_old["boards"][board]["active"] if t[0] == opno]
+                if active_already:
+                    active_new = active_already[0]
+                    configjson_old["boards"][board]["active"].remove(active_new)
+                else:
+                    active_new = [opno,keyword,[]]
+                if "scrapednos" in configjson_old["v1residue"] and board in configjson["v1residue"]["scrapednos"]:
+                    pass # up to here
+
+
+
     configjson_new = configjson_old
     return configjson_new
 
