@@ -16,6 +16,7 @@ auto_update = False # set to False during maintenance / developing
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
                                                 # may also skip some still alive threads that have just dropped off the catalog
+fourchanArchiveBoards = ['3','a','aco','adv','an','asp','biz','c','cgl','ck','cm','co','d','diy','e','fa','fit','g','gd','gif','h','hc','his','hm','hr','i','ic','int','jp','k','lgbt','lit','m','mlp','mu','n','news','o','out','p','po','pol','qa','qst','r','r9k','s','s4s','sci','soc','sp','t','tg','toy','trv','tv','u','v','vg','vip','vmg','vp','vr','vrpg','w','wg','wsg','wsr','x','y']
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
 num_download_threads = 4
@@ -570,7 +571,7 @@ def one_to_two_pt2(configjson_old):
     # 3/5 Transfer special requests
     if "specialrequests" in configjson_old["v1residue"]:
         if configjson_old["v1residue"]["specialrequests"]:
-            progressmsg.progmsg(msg="Checking special requests ",of=len(configjson_old["v1residue"]["specialrequests"]))#len0exception
+            progressmsg.progmsg(msg="Checking special requests ",of=len(configjson_old["v1residue"]["specialrequests"]))
             for req_old in [t for t in configjson_old["v1residue"]["specialrequests"]]: #stops changing size each iteration
                 [board,opno,keyword] = req_old
                 configjson_old["v1residue"]["specialrequests"].remove(req_old)
@@ -612,7 +613,7 @@ def one_to_two_pt2(configjson_old):
         if lastscrape_len == 0:
             del configjson_old["v1residue"]["lastscrapeops"]
         else:
-            progressmsg.progmsg(msg="Checking last scraped threads ",of=lastscrape_len)#len0exception
+            progressmsg.progmsg(msg="Checking last scraped threads ",of=lastscrape_len)
             for board in [b for b in configjson_old["v1residue"]["lastscrapeops"]]:
                 if not board in configjson_old["boards"]:
                     configjson_old["boards"][board] = new_board()
@@ -681,10 +682,11 @@ else:
     saveconfig()
     print("\nCreated config file 'scraperconfig.json'")
 
-#Convert to v2 if v1 and deal with v1 residue
+#Convert to v2 if v1
 if not "versioncreated" in configjson:
     configjson = one_to_two_pt1(configjson)
     saveconfig()
+#Deal with v1 residue
 if "v1residue" in configjson:
     configjson = one_to_two_pt2(configjson)
     saveconfig()
