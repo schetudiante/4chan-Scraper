@@ -10,6 +10,7 @@ import os               #   managing folders and update files
 import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached, restart delay
+from hashlib import md5 #   hashing already scraped files if number not in active : currently not in use
 
 version = '2.0.0pre2'
 auto_update = False # set to False during maintenance / developing
@@ -282,12 +283,27 @@ def getfilelist(boardcode,threadopno,keyword,modus,silent=False):
 def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
     global plebboards
 
+    def sf_error(num):
+        global lock
+        sf_errors = [
+            "Error: File /{}/:{}:{}:{} already exists; please move it ",
+            "File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file ",
+            "File /{}/:{}:{}:{} not found on 4chan and not on 4plebs ",
+            "Error: Cannot load 4chan file /{}/:{}:{}:{} ",
+            "Error: File /{}/:{}:{}:{} already exists; please move it ",
+            "File /{}/:{}:{}:{} not found on 4plebs, scraping 4plebs thumbnail ",
+            "Error: Cannot load 4plebs file /{}/:{}:{}:{} ",
+            "Error: File /{}/:{}:{}:{}(thumb) already exists; please move it ",
+            "File /{}/:{}:{}:{}(thumb) not found on 4plebs ",
+            "Error: Cannot load 4plebs file /{}/:{}:{}:{}(thumb) "]
+        with lock:
+            progressmsg.progmsg(msg=sf_errors[num].format(boardcode,threadopno,keyword,str(post["no"])))
+
     if modus == '4chan':
         try:
             imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
             if os.path.exists(imgaddress):
-                with lock:
-                    progressmsg.progmsg(msg="Error: File /{}/:{}:{}:{} already exists; please move it ".format(boardcode,threadopno,keyword,str(post["no"])))
+                sf_error(0)
                 return 'keep'
             imgdomain = 'https://i.4cdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
@@ -296,24 +312,20 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
         except Exception as e:
             if hasattr(e,'code') and e.code == 404: # pylint: disable=E1101
                 if boardcode in plebboards:
-                    with lock:
-                        progressmsg.progmsg(msg="File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file ".format(boardcode,threadopno,keyword,str(post["no"])))
+                    sf_error(1)
                     return 'try_next_modus'
                 else:
-                    with lock:
-                        progressmsg.progmsg(msg="File /{}/:{}:{}:{} not found on 4chan and not on 4plebs ".format(boardcode,threadopno,keyword,str(post["no"])))
+                    sf_error(2)
                     return 'success'
             else:
-                with lock:
-                    progressmsg.progmsg(msg="Error: Cannot load 4chan file /{}/:{}:{}:{} ".format(boardcode,threadopno,keyword,str(post["no"])))
+                sf_error(3)
                 return 'keep'
 
     elif modus == '4plebs':
         try:
             imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
             if os.path.exists(imgaddress):
-                with lock:
-                    progressmsg.progmsg(msg="Error: File /{}/:{}:{}:{} already exists; please move it ".format(boardcode,threadopno,keyword,str(post["no"])))
+                sf_error(4)
                 return 'keep'
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
@@ -321,12 +333,10 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
-                with lock:
-                    progressmsg.progmsg(msg="File /{}/:{}:{}:{} not found on 4plebs, scraping 4plebs thumbnail ".format(boardcode,threadopno,keyword,str(post["no"])))
+                sf_error(5)
                 return 'try_next_modus'
             else:
-                with lock:
-                    progressmsg.progmsg(msg="Error: Cannot load 4plebs file /{}/:{}:{}:{} ".format(boardcode,threadopno,keyword,str(post["no"])))
+                sf_error(6)
                 return 'keep'
 
     elif modus == '4plebsthumbs':
@@ -334,8 +344,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             threadaddress = '{}\\thumbs'.format(threadaddress)
             imgaddress = "{}\\{}.jpg".format(threadaddress,str(post["no"]))
             if os.path.exists(imgaddress):
-                with lock:
-                    progressmsg.progmsg(msg="Error: File /{}/:{}:{}:{}(thumb) already exists; please move it ".format(boardcode,threadopno,keyword,str(post["no"])))
+                sf_error(7)
                 return 'keep'
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}s.jpg".format(imgdomain,boardcode,str(post["tim"]))
@@ -343,12 +352,10 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             return 'success'
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
-                with lock:
-                    progressmsg.progmsg(msg="File /{}/:{}:{}:{}(thumb) not found on 4plebs ".format(boardcode,threadopno,keyword,str(post["no"])))
+                sf_error(8)
                 return 'success'
             else:
-                with lock:
-                    progressmsg.progmsg(msg="Error: Cannot load 4plebs file /{}/:{}:{}:{}(thumb) ".format(boardcode,threadopno,keyword,str(post["no"])))
+                sf_error(9)
                 return 'keep'
 
 ################################################################################
@@ -391,6 +398,32 @@ def viewblacklisting():
             for opno in configjson["boards"][board]["blacklist"][:-1]:
                 print(str(opno),end=", ")
             print(str(configjson["boards"][board]["blacklist"][-1]))
+
+################################################################################
+
+def request(board,opno):
+    global configjson
+    already_requested = [req for req in configjson["boards"][board]["requests"] if req[0] == opno]
+    if already_requested:
+        old_req = already_requested[0]
+        configjson["boards"][board]["active"].append(old_req)
+        configjson["boards"][board]["requests"].remove(old_req)
+        print("Thread /{}/:{}:{} removed from special requests".format(board,str(opno),old_req[1]))
+        return
+
+    keyword = input("What keyword(s) to tag folder with? ").lower().replace("_"," ").strip()
+    if not keyword:
+        keyword = "request"
+
+    already_active = [t for t in configjson["boards"][board]["active"] if t[0] == opno]
+    if already_active:
+        new_request = already_active[0]
+        configjson["boards"][board]["active"].remove(new_request)
+        new_request[1] = keyword
+    else:
+        new_request = [opno,keyword,[]]
+    configjson["boards"][board]["requests"].append(new_request)
+    print("Thread /{}/:{}:{} added to special requests".format(board,str(opno),keyword))
 
 ################################################################################
 
@@ -479,6 +512,17 @@ class class_progressmsg():
             stdout.write('\n')
             stdout.flush()
         self.resetvars()
+
+################################################################################
+
+def gethashhex(path,blocksize=65536):
+    with open(path,'rb') as file:
+        hasher = md5()
+        buffer = file.read(blocksize)
+        while len(buffer) > 0:
+            hasher.update(buffer)
+            buffer = file.read(blocksize)
+    return hasher.hexdigest()
 
 ################################################################################
 
@@ -717,36 +761,26 @@ while True:
             print("No board supplied")
             continue
         try:
-            requestopno = int(input("What is the OP number of the requested thread? ").strip())
+            opno = int(input("What is the OP number of the requested thread? ").strip())
         except:
             print("Error: Invalid number")
             continue
         possible_new_board(board)
-        alreadyreq = [req for req in configjson["boards"][board]["requests"] if req[0] == requestopno]
-        if alreadyreq:
-            for req in alreadyreq:
-                configjson["boards"][board]["requests"].remove(req)
-                print("Thread /{}/:{}:{} removed from special requests".format(board,str(req[0]),req[1]))
-        else:
-            keyword = input("What keyword(s) to tag folder with? ").lower().replace("_"," ").strip()
-            if not keyword:
-                keyword = "request"
-            configjson["boards"][board]["requests"].append([requestopno,keyword,[]])
-            print("Thread /{}/:{}:{} added to special requests".format(board,str(requestopno),keyword))
+        request(board,opno)
         saveconfig()
 
     elif action in ["PLEBREQUEST","P","PR"]:
         viewrequests()
-        plebrequest_board = input("\nWhat board to search on? ").lower().strip()
-        if not plebrequest_board:
+        board = input("\nWhat board to search on? ").lower().strip()
+        if not board:
             print("No board supplied")
             continue
-        plebrequest_keyword = input("What keyword to search 4plebs for? ").lower().replace("_"," ").strip()
-        if not plebrequest_keyword:
+        keyword = input("What keyword to search 4plebs for? ").lower().replace("_"," ").strip()
+        if not keyword:
             print("No keyword supplied")
             continue
-        possible_new_board(plebrequest_board)
-        plebrequest(plebrequest_board,plebrequest_keyword)
+        possible_new_board(board)
+        plebrequest(board,keyword)
         saveconfig()
 
     elif action in ["BLACKLIST","B","BLACK","BL"]:
