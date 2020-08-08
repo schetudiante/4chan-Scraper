@@ -75,7 +75,7 @@ def scrape():
         print("Currently not scraping any boards\n")
     else:
         for board in nonemptyBoards_keywords:
-            [all_doneops,all_active] = scrapeboard(board,configjson["boards"][board]["keywords"],configjson["boards"][board]["blacklist"],configjson["boards"][board]["active"],configjson["boards"][board]["doneops"])
+            [all_doneops,all_active] = scrapeboard(board,configjson["boards"][board]["keywords"],configjson["boards"][board]["blacklist"]+[t[0] for t in configjson["boards"][board]["requests"]],configjson["boards"][board]["active"],configjson["boards"][board]["doneops"])
             configjson["boards"][board]["doneops"] = all_doneops
             configjson["boards"][board]["active"] = all_active
             print()
