@@ -11,7 +11,7 @@ import threading        #   multiple simultaneous downloads
 from sys import stdout  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached, restart delay
 
-version = '2.0.0pre1'
+version = '2.0.0pre2'
 auto_update = False # set to False during maintenance / developing
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
@@ -216,8 +216,18 @@ def scrapethread(boardcode,threadopno,keyword,scrapednos,padding):
 
 ################################################################################
 
-def getfilelist(boardcode,threadopno,keyword,modus):
+def getfilelist(boardcode,threadopno,keyword,modus,silent=False):
     global plebboards,plebsHTTPHeader
+
+    def gfl_error(num):
+        gfl_errors = [
+            "Thread /{}/:{}:{} not found on 4chan, trying 4plebs",
+            "Thread /{}/:{}:{} not found on 4chan and not on 4plebs",
+            "Error: Cannot load 4chan thread /{}/:{}:{}",
+            "Thread /{}/:{}:{} not found on 4plebs",
+            "Error: Cannot load 4plebs thread /{}/:{}:{}"]
+        if silent is False:
+            print(gfl_errors[num].format(boardcode,str(threadopno),keyword))
 
     if modus == '4chan':
         try:
@@ -231,13 +241,13 @@ def getfilelist(boardcode,threadopno,keyword,modus):
             if hasattr(e,'code') and e.code == 404: # pylint: disable=E1101
                 if boardcode in plebboards:
                     #If 404 error and plebboard then try to get thread JSON from 4plebs
-                    print("Thread /{}/:{}:{} not found on 4chan, trying 4plebs".format(boardcode,str(threadopno),keyword))
+                    gfl_error(0)
                     return ['try_4plebs']
                 else:
-                    print("Thread /{}/:{}:{} not found on 4chan and not on 4plebs".format(boardcode,str(threadopno),keyword))
+                    gfl_error(1)
                     return ['delete']
             else:
-                print("Error: Cannot load 4chan thread /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
+                gfl_error(2)
                 return ['keep']
 
     elif modus == '4plebs':
@@ -260,10 +270,10 @@ def getfilelist(boardcode,threadopno,keyword,modus):
             return ['now_scrape',impostslist]
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
-                print("Thread /{}/:{}:{} not found on 4plebs".format(boardcode,str(threadopno),keyword))
+                gfl_error(3)
                 return ['delete']
             else:
-                print("Error: Cannot load 4plebs thread /{}/:{}:{}".format(boardcode,str(threadopno),keyword))
+                gfl_error(4)
                 return ['keep']
 
 ################################################################################
@@ -484,7 +494,7 @@ def update_scraper():
             return False
 
     try:
-        print("Checking for updates...")
+        print("Checking for updates")
         latestVersionJson_url = "https://api.github.com/repos/selfadjointoperator/4chan-scraper/releases/latest"
         latestVersionJson_file = urllib.request.urlopen(latestVersionJson_url)
         latestVersionJson = json.load(latestVersionJson_file)
@@ -492,7 +502,7 @@ def update_scraper():
         if webversionv[1:] == version: #versions always vX.Y.Z; remove v
             print("Latest version running")
         else:
-            print("Downloading new version {}...".format(webversionv))
+            print("Downloading new version {}".format(webversionv))
             if download_update(webversionv) is True:
                 print("Restarting new version in 3",end="",flush=True)
                 for i in range(3):
@@ -528,23 +538,18 @@ def printhelp():
 ################################################################################
 
 def one_to_two_pt1(configjson_old):
-    print("\nConfig for v1 detected, converting to v2 format...")
+    print("\nConfig for v1 detected, converting to v2 format")
     configjson_new = new_config()
 
-    # 0/5 Add boards to config DEPRACATED - move to individual parts
-    # lookForBoardsIn = [configjson_old["keywords"],configjson_old["lastscrapeops"],configjson_old["blacklistedopnos"],configjson_old["scrapednos"]]
-    # for boardstore in lookForBoardsIn:
-    #     for board in list(boardstore.keys()):
-    #         if not board in configjson_new["boards"]:
-    #             configjson_new["boards"][board] = new_board()
-
     # 1/5 Transfer keywords
+    print("Transferring keywords")
     for board in configjson_old["keywords"]:
         if not board in configjson_new["boards"]:
             configjson_new["boards"][board] = new_board()
         configjson_new["boards"][board]["keywords"] = configjson_old["keywords"][board]
 
     # 2/5 Transfer blacklisted opnos
+    print("Transferring blacklists")
     for board in configjson_old["blacklistedopnos"]:
         if not board in configjson_new["boards"]:
             configjson_new["boards"][board] = new_board()
@@ -560,60 +565,94 @@ def one_to_two_pt1(configjson_old):
 ################################################################################
 
 def one_to_two_pt2(configjson_old):
-    print("\nChecking archives to convert rest of config to v2...")
+    print("\nChecking archives to convert rest of config to v2")
 
     # 3/5 Transfer special requests
     if "specialrequests" in configjson_old["v1residue"]:
-        for req_old in [t for t in configjson_old["v1residue"]["specialrequests"]]: #stops changing size each iteration
-            [board,opno,keyword] = req_old
-            configjson_old["v1residue"]["specialrequests"].remove(req_old)
-            if not board in configjson_old["boards"]:
-                configjson_old["boards"][board] = new_board()
-            reqs_already = [t for t in configjson_old["boards"][board]["requests"] if t[0] == opno]
-            if reqs_already:
-                req_new = reqs_already[0]
-                configjson_old["boards"][board]["requests"].remove(req_new)
-            else:
-                req_new = [opno,keyword,[]]
-            if "scrapednos" in configjson_old["v1residue"] and board in configjson_old["v1residue"]["scrapednos"]:
-                req_numbers = getfilelist(board,opno,keyword,'4chan')
-                if req_numbers[0] == 'try_4plebs':
-                    req_numbers = getfilelist(board,opno,keyword,'4plebs')
-                if req_numbers[0] == 'delete': # post nos not there
-                    continue
-                elif req_numbers[0] == 'keep': # keep error
-                    configjson_old["v1residue"]["specialrequests"].append(req_old)
-                else:                          # post nos found
-                    req_numbers = [t["no"] for t in req_numbers[1]]
-                    for req_number in req_numbers:
-                        if req_number in configjson_old["v1residue"]["scrapednos"][board]:
-                            req_new[2].append(req_number)
-                            configjson_old["v1residue"]["scrapednos"][board].remove(req_number)
-            req_new[2] = list(set(req_new[2]))
-            configjson_old["boards"][board]["requests"].append(req_new)
+        if configjson_old["v1residue"]["specialrequests"]:
+            progressmsg.progmsg(msg="Checking special requests ",of=len(configjson_old["v1residue"]["specialrequests"]))#len0exception
+            for req_old in [t for t in configjson_old["v1residue"]["specialrequests"]]: #stops changing size each iteration
+                [board,opno,keyword] = req_old
+                configjson_old["v1residue"]["specialrequests"].remove(req_old)
+                if not board in configjson_old["boards"]:
+                    configjson_old["boards"][board] = new_board()
+                reqs_already = [t for t in configjson_old["boards"][board]["requests"] if t[0] == opno]
+                if reqs_already:
+                    req_new = reqs_already[0]
+                    configjson_old["boards"][board]["requests"].remove(req_new)
+                else:
+                    req_new = [opno,keyword,[]]
+                if "scrapednos" in configjson_old["v1residue"] and board in configjson_old["v1residue"]["scrapednos"]:
+                    req_numbers = getfilelist(board,opno,keyword,'4chan',silent=True)
+                    if req_numbers[0] == 'try_4plebs':
+                        req_numbers = getfilelist(board,opno,keyword,'4plebs',silent=True)
+                    if req_numbers[0] == 'delete': # post nos not there
+                        configjson_old["boards"][board]["doneops"].insert(0,opno)
+                        progressmsg.tick()
+                        continue
+                    elif req_numbers[0] == 'keep': # keep error
+                        progressmsg.progmsg(msg="Error: Cannot check thread /{}/:{}:{}; will try again next launch".format(board,opno,keyword))
+                        configjson_old["v1residue"]["specialrequests"].append(req_old)
+                    else:                          # post nos found
+                        req_numbers = [t["no"] for t in req_numbers[1]]
+                        for req_number in req_numbers:
+                            if req_number in configjson_old["v1residue"]["scrapednos"][board]:
+                                req_new[2].append(req_number)
+                                configjson_old["v1residue"]["scrapednos"][board].remove(req_number)
+                        progressmsg.tick()
+                req_new[2] = list(set(req_new[2]))
+                configjson_old["boards"][board]["requests"].append(req_new)
         if not configjson_old["v1residue"]["specialrequests"]:
             del configjson_old["v1residue"]["specialrequests"]
+        progressmsg.finish()
 
     # 4/5 Transfer last scraped threads
     if "lastscrapeops" in configjson_old["v1residue"]:
-        for board in [b for b in configjson_old["v1residue"]["lastscrapeops"]]:
-            if not board in configjson_old["boards"]:
-                configjson_old["boards"][board] = new_board()
-            for lastscrapeop in [t for t in configjson_old["v1residue"]["lastscrapeops"][board]]:
-                [opno,keyword] = lastscrapeop
-                configjson_old["v1residue"]["lastscrapeops"][board].remove(lastscrapeop)
-                active_already = [t for t in configjson_old["boards"][board]["active"] if t[0] == opno]
-                if active_already:
-                    active_new = active_already[0]
-                    configjson_old["boards"][board]["active"].remove(active_new)
-                else:
-                    active_new = [opno,keyword,[]]
-                if "scrapednos" in configjson_old["v1residue"] and board in configjson["v1residue"]["scrapednos"]:
-                    pass # up to here
-
-
+        lastscrape_len = sum(len(configjson_old["v1residue"]["lastscrapeops"][b]) for b in configjson_old["v1residue"]["lastscrapeops"])
+        if lastscrape_len == 0:
+            del configjson_old["v1residue"]["lastscrapeops"]
+        else:
+            progressmsg.progmsg(msg="Checking last scraped threads ",of=lastscrape_len)#len0exception
+            for board in [b for b in configjson_old["v1residue"]["lastscrapeops"]]:
+                if not board in configjson_old["boards"]:
+                    configjson_old["boards"][board] = new_board()
+                for lastscrapeop in [t for t in configjson_old["v1residue"]["lastscrapeops"][board]]:
+                    [opno,keyword] = lastscrapeop
+                    configjson_old["v1residue"]["lastscrapeops"][board].remove(lastscrapeop)
+                    active_already = [t for t in configjson_old["boards"][board]["active"] if t[0] == opno]
+                    if active_already:
+                        active_new = active_already[0]
+                        configjson_old["boards"][board]["active"].remove(active_new)
+                    else:
+                        active_new = [opno,keyword,[]]
+                    if "scrapednos" in configjson_old["v1residue"] and board in configjson_old["v1residue"]["scrapednos"]:
+                        active_numbers = getfilelist(board,opno,keyword,'4chan',silent=True)
+                        if active_numbers[0] == 'try_4plebs':
+                            active_numbers = getfilelist(board,opno,keyword,'4plebs',silent=True)
+                        if active_numbers[0] == 'delete': # post nos not there
+                            configjson_old["boards"][board]["doneops"].insert(0,opno)
+                            progressmsg.tick()
+                            continue
+                        elif active_numbers[0] == 'keep': # keep error
+                            progressmsg.progmsg(msg="Error: Cannot check thread /{}/:{}:{}; will try again next launch".format(board,opno,keyword))
+                            configjson_old["v1residue"]["lastscrapeops"][board].append(lastscrapeop)
+                        else:                             # post nos found
+                            active_numbers = [t["no"] for t in active_numbers[1]]
+                            for active_number in active_numbers:
+                                if active_number in configjson_old["v1residue"]["scrapednos"][board]:
+                                    active_new[2].append(active_number)
+                                    configjson_old["v1residue"]["scrapednos"][board].remove(active_number)
+                            progressmsg.tick()
+                    active_new[2] = list(set(active_new[2]))
+                    configjson_old["boards"][board]["active"].append(active_new)
+                if not configjson_old["v1residue"]["lastscrapeops"][board]:
+                    del configjson_old["v1residue"]["lastscrapeops"][board]
+            if not configjson_old["v1residue"]["lastscrapeops"]:
+                del configjson_old["v1residue"]["lastscrapeops"]
+            progressmsg.finish()
 
     configjson_new = configjson_old
+
     return configjson_new
 
 ################################################################################
