@@ -4,13 +4,13 @@
 ##github.com/SelfAdjointOperator##
 ##################################
 
-import urllib.request   #   getting files from web
-import json             #   config file and api pages jsons to and from dictionary
-import os               #   managing folders and update files
-import threading        #   multiple simultaneous downloads
-from sys import stdout  #   for progress bar
-from time import sleep  #   sleep if 4plebs search cooldown reached, restart delay
-from hashlib import md5 #   hashing already scraped files if number not in active : currently not in use
+import urllib.request       #   getting files from web
+import json                 #   config file and api pages jsons to and from dictionary
+import os                   #   managing folders and update files
+import threading            #   multiple simultaneous downloads
+from sys import stdout      #   for progress bar
+from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
+from hashlib import md5     #   hashing already scraped files if number not in active : currently not in use
 
 version = '2.0.0pre4'
 auto_update = False # set to False during maintenance / developing
@@ -92,7 +92,7 @@ def scrapeboard(boardcode,keywords,blacklist,active,doneops):
     alreadyConsidered_opnos = blacklist + doneops
 
     #Check if current active are still what we want
-    threadstoscrape = [t for t in active if not t[0] in alreadyConsidered_opnos and t[1] in keywords+["v1residue"]]
+    threadstoscrape = [t for t in active if not t[0] in alreadyConsidered_opnos and t[1] in keywords]
     alreadyConsidered_opnos += [t[0] for t in threadstoscrape]
     active = []
 
@@ -286,14 +286,14 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
     def sf_error(num):
         global lock
         sf_errors = [
-            "Error: File /{}/:{}:{}:{} already exists; please move it ",
+            "File /{}/:{}:{}:{} already exists; possible duplicate scraped ",
             "File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file ",
             "File /{}/:{}:{}:{} not found on 4chan and not on 4plebs ",
             "Error: Cannot load 4chan file /{}/:{}:{}:{} ",
-            "Error: File /{}/:{}:{}:{} already exists; please move it ",
+            "File /{}/:{}:{}:{} already exists; possible duplicate scraped ",
             "File /{}/:{}:{}:{} not found on 4plebs, scraping 4plebs thumbnail ",
             "Error: Cannot load 4plebs file /{}/:{}:{}:{} ",
-            "Error: File /{}/:{}:{}:{}(thumb) already exists; please move it ",
+            "File /{}/:{}:{}:{}(thumb) already exists; possible duplicate scraped ",
             "File /{}/:{}:{}:{}(thumb) not found on 4plebs ",
             "Error: Cannot load 4plebs file /{}/:{}:{}:{}(thumb) "]
         with lock:
@@ -304,7 +304,8 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
             if os.path.exists(imgaddress):
                 sf_error(0)
-                return 'keep'
+                rn_name,rn_ext = os.path.splitext(imgaddress)
+                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_dup_",str(int(time())),rn_ext))
             imgdomain = 'https://i.4cdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             urllib.request.urlretrieve(imgurl,imgaddress)
@@ -326,7 +327,8 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
             if os.path.exists(imgaddress):
                 sf_error(4)
-                return 'keep'
+                rn_name,rn_ext = os.path.splitext(imgaddress)
+                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_dup_",str(int(time())),rn_ext))
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             urllib.request.urlretrieve(imgurl,imgaddress)
@@ -345,7 +347,8 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             imgaddress = "{}\\{}.jpg".format(threadaddress,str(post["no"]))
             if os.path.exists(imgaddress):
                 sf_error(7)
-                return 'keep'
+                rn_name,rn_ext = os.path.splitext(imgaddress)
+                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_dup_",str(int(time())),rn_ext))
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}s.jpg".format(imgdomain,boardcode,str(post["tim"]))
             urllib.request.urlretrieve(imgurl,imgaddress)
@@ -707,8 +710,10 @@ def one_to_two_pt2(configjson_old):
             del configjson_old["v1residue"]["scrapednos"]
         else:
             print("Checking scraped post numbers")
-            for board in [b for b in configjson_old["v1residue"]["scrapednos"] if configjson_old["v1residue"]["scrapednos"][b]]:
-                progressmsg.progmsg(msg="/{}/: ".format(board),of=scrapednos_len)
+            boardstoloopover = [b for b in configjson_old["v1residue"]["scrapednos"] if configjson_old["v1residue"]["scrapednos"][b]]
+            maxpad = max([len(str(b)) for b in boardstoloopover])
+            for board in boardstoloopover:
+                progressmsg.progmsg(msg="/{}/: {}".format(board," "*(maxpad-len(str(board)))),of=scrapednos_len)
                 keep_residueBoard_flag = 0
                 if not board in configjson_old["boards"]:
                     configjson_old["boards"][board] = new_board()
@@ -749,7 +754,7 @@ def one_to_two_pt2(configjson_old):
                                     progressmsg.tick()
                                 else:
                                     threadnos_alldone = 0
-                            if threadnos_alldone == 1:
+                            if threadnos_alldone == 1 and opno in archivedops:
                                 configjson_old["boards"][board]["doneops"].append(opno)
 
                 if not board in plebboards:
@@ -803,6 +808,7 @@ def one_to_two_pt2(configjson_old):
 
     if not configjson_old["v1residue"]:
         del configjson_old["v1residue"]
+        print("Finished conversion!")
 
     configjson_new = configjson_old
 
