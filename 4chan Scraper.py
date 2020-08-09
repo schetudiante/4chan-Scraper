@@ -12,7 +12,7 @@ from sys import stdout  #   for progress bar
 from time import sleep  #   sleep if 4plebs search cooldown reached, restart delay
 from hashlib import md5 #   hashing already scraped files if number not in active : currently not in use
 
-version = '2.0.0pre3'
+version = '2.0.0pre4'
 auto_update = False # set to False during maintenance / developing
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
@@ -92,7 +92,7 @@ def scrapeboard(boardcode,keywords,blacklist,active,doneops):
     alreadyConsidered_opnos = blacklist + doneops
 
     #Check if current active are still what we want
-    threadstoscrape = [t for t in active if not t[0] in alreadyConsidered_opnos and t[1] in keywords]
+    threadstoscrape = [t for t in active if not t[0] in alreadyConsidered_opnos and t[1] in keywords+["v1residue"]]
     alreadyConsidered_opnos += [t[0] for t in threadstoscrape]
     active = []
 
@@ -166,7 +166,7 @@ def scrapethread(boardcode,threadopno,keyword,scrapednos,padding):
             with lock:
                 try:
                     postbuffers[dtid] = impostslist.pop(0)
-                    if int(postbuffers[dtid]["no"]) in scrapednos:
+                    if postbuffers[dtid]["no"] in scrapednos:
                         progressmsg.tick()
                         continue
                 except:
@@ -183,7 +183,7 @@ def scrapethread(boardcode,threadopno,keyword,scrapednos,padding):
                 result = scrapefile(threadaddress,postbuffers[dtid],modus,boardcode,threadopno,keyword)
                 with lock:
                     if result == 'success':
-                        scrapednos.append(int(postbuffers[dtid]["no"]))
+                        scrapednos.append(postbuffers[dtid]["no"])
                         progressmsg.tick()
                         break
                     elif result == 'keep':
@@ -264,11 +264,11 @@ def getfilelist(boardcode,threadopno,keyword,modus,silent=False):
                     raise Exception
             impostslist = []
             if "op" in threadjson[str(threadopno)] and threadjson[str(threadopno)]["op"]["media"] != None:
-                impostslist.append({"no":threadjson[str(threadopno)]["op"]["num"],"tim":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[0],"ext":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[1]})
+                impostslist.append({"no":int(threadjson[str(threadopno)]["op"]["num"]),"tim":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[0],"ext":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[1]})
             if "posts" in threadjson[str(threadopno)]:
                 for postvalue in threadjson[str(threadopno)]["posts"].values():
                     if postvalue["media"] != None:
-                        impostslist.append({"no":str(postvalue["num"]),"tim":os.path.splitext(postvalue["media"]["media"])[0],"ext":os.path.splitext(postvalue["media"]["media"])[1]})
+                        impostslist.append({"no":int(postvalue["num"]),"tim":os.path.splitext(postvalue["media"]["media"])[0],"ext":os.path.splitext(postvalue["media"]["media"])[1]})
             return ['now_scrape',impostslist]
         except Exception as e:
             if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
@@ -499,9 +499,10 @@ class class_progressmsg():
         stdout.write(prog)
         stdout.flush()
 
-    def tick(self):
+    def tick(self,times=1):
         if self.active:
-            self.pos+=1
+            self.pos += times
+            self.pos = min([self.pos,self.of])
             stdout.write('\b'*self.bsnum)
             self.printprog()
             if self.pos == self.of:
@@ -610,6 +611,7 @@ def one_to_two_pt1(configjson_old):
 ################################################################################
 
 def one_to_two_pt2(configjson_old):
+    global plebboards,plebsHTTPHeader,fourchanArchiveBoards
     print("\nChecking archives to convert requests and last scraped threads of config to v2 format")
 
     # 3/5 Transfer special requests
@@ -698,13 +700,16 @@ def one_to_two_pt2(configjson_old):
 
     # 5/5 Deal with all remaining scrapednos
     if "scrapednos" in configjson_old["v1residue"]:
+        for board in [b for b in configjson_old["v1residue"]["scrapednos"] if not configjson_old["v1residue"]["scrapednos"][b]]:
+            del configjson_old["v1residue"]["scrapednos"][board]
         scrapednos_len = sum(len(configjson_old["v1residue"]["scrapednos"][b]) for b in configjson_old["v1residue"]["scrapednos"])
         if scrapednos_len == 0:
             del configjson_old["v1residue"]["scrapednos"]
         else:
-            progressmsg.progmsg(msg="Checking scraped post numbers ",of=scrapednos_len)
+            print("Checking scraped post numbers")
             for board in [b for b in configjson_old["v1residue"]["scrapednos"] if configjson_old["v1residue"]["scrapednos"][b]]:
-                keepflag = 0
+                progressmsg.progmsg(msg="/{}/: ".format(board),of=scrapednos_len)
+                keep_residueBoard_flag = 0
                 if not board in configjson_old["boards"]:
                     configjson_old["boards"][board] = new_board()
                 configjson_old["v1residue"]["scrapednos"][board].sort() # sort for correct popping order
@@ -713,10 +718,13 @@ def one_to_two_pt2(configjson_old):
                     currentopsjson_file = urllib.request.urlopen(currentopsjson_url)
                     currentopsjson = json.load(currentopsjson_file)
                     currentops = [t["no"] for page in currentopsjson for t in page["threads"]]
-                    archivedopsjson_url = 'https://a.4cdn.org/{}/archive.json'.format(board)
-                    archivedopsjson_file = urllib.request.urlopen(archivedopsjson_url)
-                    archivedopsjson = json.load(archivedopsjson_file)
-                    archivedops = [t for t in archivedopsjson]
+                    if board in fourchanArchiveBoards:
+                        archivedopsjson_url = 'https://a.4cdn.org/{}/archive.json'.format(board)
+                        archivedopsjson_file = urllib.request.urlopen(archivedopsjson_url)
+                        archivedopsjson = json.load(archivedopsjson_file)
+                        archivedops = [t for t in archivedopsjson]
+                    else:
+                        archivedops = []
                     opstocheck = list(set(currentops+archivedops))
                 except:
                     continue # not worth going on if this section fails
@@ -730,48 +738,71 @@ def one_to_two_pt2(configjson_old):
                             progressmsg.tick()
                             continue
                         elif threadnos[0] == 'keep': #keep error
-                            keepflag = 1
+                            keep_residueBoard_flag = 1
                             continue
                         else:
                             threadnos = [t["no"] for t in threadnos[1]]
                             threadnos_alldone = 1
-                            for threadno in threadnos:
+                            for threadno in [t for t in threadnos if t!= opno]:
                                 if threadno in configjson_old["v1residue"]["scrapednos"][board]:
                                     configjson_old["v1residue"]["scrapednos"][board].remove(threadno)
+                                    progressmsg.tick()
                                 else:
                                     threadnos_alldone = 0
-                                    #work out if yet to scrape blahhhhhh
+                            if threadnos_alldone == 1:
+                                configjson_old["boards"][board]["doneops"].append(opno)
 
-                # while configjson_old["v1residue"]["scrapednos"][board]:
-                #     current_no = configjson_old["v1residue"]["scrapednos"][board].pop()
+                if not board in plebboards:
+                    if keep_residueBoard_flag == 0:
+                        progressmsg.tick(times=len([t for t in configjson_old["v1residue"]["scrapednos"][board]]))
+                        del configjson_old["v1residue"]["scrapednos"][board]
+                else:
+                    popped_failed = []
+                    while True:
+                        try:
+                            popped_no = configjson_old["v1residue"]["scrapednos"][board].pop()
+                            try:
+                                postjson_url = 'http://archive.4plebs.org/_/api/chan/post/?board={}&num={}'.format(board,str(popped_no))
+                                postjson_file = urllib.request.urlopen(urllib.request.Request(postjson_url,None,{'User-Agent':plebsHTTPHeader}))
+                                postjson = json.load(postjson_file)
+                                if "error" in postjson:
+                                    if postjson["error"] == "Post not found.":
+                                        progressmsg.tick()
+                                        continue
+                                    else:
+                                        raise Exception
+                                post_opno = int(postjson["thread_num"])
+                                post_thread_nos = getfilelist(board,post_opno,"",'4plebs',silent=True)
+                                if post_thread_nos[0] == 'keep':
+                                    raise Exception
+                                elif post_thread_nos[0] == 'delete':
+                                    progressmsg.tick()
+                                else:
+                                    post_thread_nos = [t["no"] for t in post_thread_nos[1]]
+                                    post_thread_nos_alldone = 1
+                                    for no in [t for t in post_thread_nos if t != post_opno]:
+                                        if no in configjson_old["v1residue"]["scrapednos"][board]:
+                                            configjson_old["v1residue"]["scrapednos"][board].remove(no)
+                                            progressmsg.tick()
+                                        else:
+                                            post_thread_nos_alldone = 0
+                                    if post_thread_nos_alldone == 1:
+                                        configjson_old["boards"][board]["doneops"].append(post_opno)
+                            except:
+                                popped_failed.append(popped_no)
+                        except:
+                            if popped_failed:
+                                configjson_old["v1residue"]["scrapednos"][board] = popped_failed
+                            else:
+                                del configjson_old["v1residue"]["scrapednos"][board]
+                            break
 
-                    #######
-                    current_no_numbers = getfilelist(board,opno,keyword,'4chan',silent=True)
-                    if active_numbers[0] == 'try_4plebs':
-                        active_numbers = getfilelist(board,opno,keyword,'4plebs',silent=True)
-                    if active_numbers[0] == 'delete': # post nos not there
-                        configjson_old["boards"][board]["doneops"].insert(0,opno)
-                        progressmsg.tick()
-                        continue
-                    elif active_numbers[0] == 'keep': # keep error
-                        progressmsg.progmsg(msg="Error: Cannot check thread /{}/:{}:{}; will try again next launch".format(board,opno,keyword))
-                        configjson_old["v1residue"]["lastscrapeops"][board].append(lastscrapeop)
-                    else:                             # post nos found
-                        active_numbers = [t["no"] for t in active_numbers[1]]
-                        for active_number in active_numbers:
-                            if active_number in configjson_old["v1residue"]["scrapednos"][board]:
-                                active_new[2].append(active_number)
-                                configjson_old["v1residue"]["scrapednos"][board].remove(active_number)
-                        progressmsg.tick()
-                    active_new[2] = list(set(active_new[2]))
-                    configjson_old["boards"][board]["active"].append(active_new)
-                    #######
-
-                if not configjson_old["v1residue"]["lastscrapeops"][board]:
-                    del configjson_old["v1residue"]["lastscrapeops"][board]
+            progressmsg.finish()
             if not configjson_old["v1residue"]["scrapednos"]:
                 del configjson_old["v1residue"]["scrapednos"]
-            progressmsg.finish()
+
+    if not configjson_old["v1residue"]:
+        del configjson_old["v1residue"]
 
     configjson_new = configjson_old
 
