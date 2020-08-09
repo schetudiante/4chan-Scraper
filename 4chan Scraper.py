@@ -12,8 +12,8 @@ from sys import stdout      #   for progress bar
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
 from hashlib import md5     #   hashing already scraped files if number not in active : currently not in use
 
-version = '2.0.0pre5'
-auto_update = False # set to False during maintenance / developing
+version = '2.0.0'
+auto_update = True # set to False during maintenance / developing
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
                                                 # may also skip some still alive threads that have just dropped off the catalog
