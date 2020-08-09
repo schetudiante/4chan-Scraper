@@ -15,8 +15,8 @@ from hashlib import md5     #   hashing already scraped files if number not in a
 version = '2.0.0'
 auto_update = True # set to False during maintenance / developing
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
-no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
-                                                # may also skip some still alive threads that have just dropped off the catalog
+nofourchanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
+                                                   # may also skip some still alive threads that have just dropped off the catalog
 fourchanArchiveBoards = ['3','a','aco','adv','an','asp','biz','c','cgl','ck','cm','co','d','diy','e','fa','fit','g','gd','gif','h','hc','his','hm','hr','i','ic','int','jp','k','lgbt','lit','m','mlp','mu','n','news','o','out','p','po','pol','qa','qst','r','r9k','s','s4s','sci','soc','sp','t','tg','toy','trv','tv','u','v','vg','vip','vmg','vp','vr','vrpg','w','wg','wsg','wsr','x','y']
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
@@ -311,7 +311,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             if os.path.exists(imgaddress):
                 sf_error(0)
                 rn_name,rn_ext = os.path.splitext(imgaddress)
-                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_dup_",str(int(time())),rn_ext))
+                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_possibleDuplicate_",str(int(time())),rn_ext))
             imgdomain = 'https://i.4cdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             urllib.request.urlretrieve(imgurl,imgaddress)
@@ -334,7 +334,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             if os.path.exists(imgaddress):
                 sf_error(4)
                 rn_name,rn_ext = os.path.splitext(imgaddress)
-                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_dup_",str(int(time())),rn_ext))
+                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_possibleDuplicate_",str(int(time())),rn_ext))
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             urllib.request.urlretrieve(imgurl,imgaddress)
@@ -354,7 +354,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             if os.path.exists(imgaddress):
                 sf_error(7)
                 rn_name,rn_ext = os.path.splitext(imgaddress)
-                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_dup_",str(int(time())),rn_ext))
+                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_possibleDuplicate_",str(int(time())),rn_ext))
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}s.jpg".format(imgdomain,boardcode,str(post["tim"]))
             urllib.request.urlretrieve(imgurl,imgaddress)
