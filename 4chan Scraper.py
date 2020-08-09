@@ -12,7 +12,7 @@ from sys import stdout      #   for progress bar
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
 from hashlib import md5     #   hashing already scraped files if number not in active : currently not in use
 
-version = '2.0.0pre4'
+version = '2.0.0pre5'
 auto_update = False # set to False during maintenance / developing
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 no4chanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
@@ -94,6 +94,8 @@ def scrapeboard(boardcode,keywords,blacklist,active,doneops):
     #Check if current active are still what we want
     threadstoscrape = [t for t in active if not t[0] in alreadyConsidered_opnos and t[1] in keywords]
     alreadyConsidered_opnos += [t[0] for t in threadstoscrape]
+    formerRequests = [t for t in active if t[1] == '_OLDREQ_']
+    formerRequests_opnos = [t[0] for t in formerRequests]
     active = []
 
     #Board Catalog JSON
@@ -111,7 +113,11 @@ def scrapeboard(boardcode,keywords,blacklist,active,doneops):
                     for boxtocheck in boxestocheck:
                         for keyword in keywords:
                             if keyword in threadop[boxtocheck].lower():
-                                threadstoscrape.append([threadop["no"],keyword,[]])
+                                if threadop["no"] in formerRequests_opnos: #check if former request with scraped nos already
+                                    formerRequest_nos = [t for t in formerRequests if t[0] == threadop["no"]][0][2]
+                                else:
+                                    formerRequest_nos = []
+                                threadstoscrape.append([threadop["no"],keyword,formerRequest_nos])
                                 boxbreak=1
                                 break
                         if boxbreak==1:
@@ -409,9 +415,12 @@ def request(board,opno):
     already_requested = [req for req in configjson["boards"][board]["requests"] if req[0] == opno]
     if already_requested:
         old_req = already_requested[0]
-        configjson["boards"][board]["active"].append(old_req)
         configjson["boards"][board]["requests"].remove(old_req)
-        print("Thread /{}/:{}:{} removed from special requests".format(board,str(opno),old_req[1]))
+        old_req_old_keyword = old_req[1]
+        old_req[1] = "_OLDREQ_"
+        #impossible to put underscore in manually, never a keyword; former-request with board keyword that is removed from requests will not stick in active if the scraper would not naturally pick it again for that keyword
+        configjson["boards"][board]["active"].append(old_req)
+        print("Thread /{}/:{}:{} removed from special requests".format(board,str(opno),old_req_old_keyword))
         return
 
     keyword = input("What keyword(s) to tag folder with? ").lower().replace("_"," ").strip()
