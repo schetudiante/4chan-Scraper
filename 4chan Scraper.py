@@ -12,7 +12,7 @@ from sys import stdout      #   for progress bar
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
 from hashlib import md5     #   hashing already scraped files if number not in active : currently not in use
 
-version = '2.0.0'
+version = '2.0.1'
 auto_update = True # set to False during maintenance / developing
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 nofourchanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
@@ -463,7 +463,14 @@ def plebrequest(boardcode,keyword):
 
     opnos = list(set(opnos).difference(set([req[0] for req in configjson["boards"][boardcode]["requests"]])))
     for opno in opnos:
-        configjson["boards"][boardcode]["requests"].append([opno,keyword,[]])
+        already_active = [t for t in configjson["boards"][boardcode]["active"] if t[0] == opno]
+        if already_active:
+            new_request = already_active[0]
+            configjson["boards"][boardcode]["active"].remove(new_request)
+            new_request[1] = keyword
+        else:
+            new_request = [opno,keyword,[]]
+        configjson["boards"][boardcode]["requests"].append(new_request)
     if opnos:
         opnos_len = len(opnos)
         print("Added {} special request{}".format(opnos_len,"" if opnos_len==1 else "s"))

@@ -1,5 +1,8 @@
 # Changelog
 
+## v2.0.1
+- Fix `PLEBREQUEST` threads appearing also in normal scrape
+
 ## v2.0.0
 - Major revamp of how the config stores scraped threads: cut size of config file / search times significantly
 - Fix bug of threads with same op number as a special request not being scraped regardless of board
