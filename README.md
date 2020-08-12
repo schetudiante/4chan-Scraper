@@ -19,7 +19,6 @@ The main program to run is `4chan Scraper.py`, written in Python 3.6. When run t
 - Inbuilt `HELP` command
 - **Automatic:** If a thread or file is not found on 4chan, and the board is being archived on 4plebs, it is then searched for on 4plebs
 - **Automatic:** Threads are scraped one last time if they are archived
-- **Automatic:** Regular maintenance is performed on the config file to keep the scraper operating at top speed
 - **Automatic:** Downloading is multithreaded: multiple files download at a time to accelerate scraping
 - **Automatic:** Updates to the program are checked for and installed on launch
 - **Automatic:** For anyone who happened to use v1, there is an inbuilt converter to v2 config type

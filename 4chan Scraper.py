@@ -12,7 +12,7 @@ from sys import stdout      #   for progress bar
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
 from hashlib import md5     #   hashing already scraped files if number not in active : currently not in use
 
-version = '2.0.1'
+version = '2.0.2'
 auto_update = True # set to False during maintenance / developing
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 nofourchanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
@@ -28,13 +28,14 @@ def new_config():
     global version
     # v1configjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
     # v2aconfigjson = {"version": version, "keywords": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
+    # v2configjson = {"versioncreated":version, "boards":{}}
     return {"versioncreated":version, "boards":{}}
 
 ################################################################################
 
 def new_board():
     return {"keywords":[], "blacklist":[], "requests":[], "active":[], "doneops":[]}
-    # active example [opno,keyword,[]]
+    # active/requests example [opno,keyword,[]]
 
 ################################################################################
 
@@ -42,6 +43,12 @@ def possible_new_board(boardcode):
     global configjson
     if not boardcode in configjson["boards"]:
         configjson["boards"][boardcode] = new_board()
+
+################################################################################
+
+def saveconfig():
+    with open('scraperconfig.json','w') as configjson_file:
+        configjson_file.write(json.dumps(configjson))
 
 ################################################################################
 
@@ -94,8 +101,7 @@ def scrapeboard(boardcode,keywords,blacklist,active,doneops):
     #Check if current active are still what we want
     threadstoscrape = [t for t in active if not t[0] in alreadyConsidered_opnos and t[1] in keywords]
     alreadyConsidered_opnos += [t[0] for t in threadstoscrape]
-    formerRequests = [t for t in active if t[1] == '_OLDREQ_']
-    formerRequests_opnos = [t[0] for t in formerRequests]
+    formerRequests = [t for t in active if t[1][:8] == '_OLDREQ_']
     active = []
 
     #Board Catalog JSON
@@ -113,9 +119,16 @@ def scrapeboard(boardcode,keywords,blacklist,active,doneops):
                     for boxtocheck in boxestocheck:
                         for keyword in keywords:
                             if keyword in threadop[boxtocheck].lower():
-                                if threadop["no"] in formerRequests_opnos: #check if former request with scraped nos already
-                                    formerRequest_nos = [t for t in formerRequests if t[0] == threadop["no"]][0][2]
-                                else:
+                                try: #check if former request with scraped nos already
+                                    formerRequest = [t for t in formerRequests if t[0] == threadop["no"]][0]
+                                    formerRequest_nos = formerRequest[2]
+                                    try:
+                                        folder_old = "{}\\{} {}".format(boardcode,str(threadop["no"]),formerRequest[1][8:])
+                                        folder_new = "{}\\{} {}".format(boardcode,str(threadop["no"]),keyword)
+                                        os.rename(folder_old,folder_new)
+                                    except:
+                                        pass
+                                except:
                                     formerRequest_nos = []
                                 threadstoscrape.append([threadop["no"],keyword,formerRequest_nos])
                                 boxbreak=1
@@ -311,7 +324,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             if os.path.exists(imgaddress):
                 sf_error(0)
                 rn_name,rn_ext = os.path.splitext(imgaddress)
-                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_possibleDuplicate_",str(int(time())),rn_ext))
+                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_",str(int(time())),rn_ext))
             imgdomain = 'https://i.4cdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             urllib.request.urlretrieve(imgurl,imgaddress)
@@ -334,7 +347,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             if os.path.exists(imgaddress):
                 sf_error(4)
                 rn_name,rn_ext = os.path.splitext(imgaddress)
-                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_possibleDuplicate_",str(int(time())),rn_ext))
+                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_",str(int(time())),rn_ext))
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
             urllib.request.urlretrieve(imgurl,imgaddress)
@@ -354,7 +367,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             if os.path.exists(imgaddress):
                 sf_error(7)
                 rn_name,rn_ext = os.path.splitext(imgaddress)
-                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_possibleDuplicate_",str(int(time())),rn_ext))
+                os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_",str(int(time())),rn_ext))
             imgdomain = 'https://i.4pcdn.org/'
             imgurl = "{}{}/{}s.jpg".format(imgdomain,boardcode,str(post["tim"]))
             urllib.request.urlretrieve(imgurl,imgaddress)
@@ -412,28 +425,36 @@ def viewblacklisting():
 
 def request(board,opno):
     global configjson
-    already_requested = [req for req in configjson["boards"][board]["requests"] if req[0] == opno]
-    if already_requested:
-        old_req = already_requested[0]
+
+    try:
+        old_req = [req for req in configjson["boards"][board]["requests"] if req[0] == opno][0]
         configjson["boards"][board]["requests"].remove(old_req)
         old_req_old_keyword = old_req[1]
-        old_req[1] = "_OLDREQ_"
+        old_req[1] = "_OLDREQ_" + old_req_old_keyword
         #impossible to put underscore in manually, never a keyword; former-request with board keyword that is removed from requests will not stick in active if the scraper would not naturally pick it again for that keyword
         configjson["boards"][board]["active"].append(old_req)
         print("Thread /{}/:{}:{} removed from special requests".format(board,str(opno),old_req_old_keyword))
         return
+    except:
+        pass
 
     keyword = input("What keyword(s) to tag folder with? ").lower().replace("_"," ").strip()
     if not keyword:
         keyword = "request"
 
-    already_active = [t for t in configjson["boards"][board]["active"] if t[0] == opno]
-    if already_active:
-        new_request = already_active[0]
+    try:
+        new_request = [t for t in configjson["boards"][board]["active"] if t[0] == opno][0]
         configjson["boards"][board]["active"].remove(new_request)
+        try:
+            folder_old = "{}\\{} {}".format(board,str(opno),new_request[1])
+            folder_new = "{}\\{} {}".format(board,str(opno),keyword)
+            os.rename(folder_old,folder_new)
+        except:
+            pass
         new_request[1] = keyword
-    else:
+    except:
         new_request = [opno,keyword,[]]
+
     configjson["boards"][board]["requests"].append(new_request)
     print("Thread /{}/:{}:{} added to special requests".format(board,str(opno),keyword))
 
@@ -476,12 +497,6 @@ def plebrequest(boardcode,keyword):
         print("Added {} special request{}".format(opnos_len,"" if opnos_len==1 else "s"))
     else:
         print("No more special requests added")
-
-################################################################################
-
-def saveconfig():
-    with open('scraperconfig.json','w') as configjson_file:
-        configjson_file.write(json.dumps(configjson))
 
 ################################################################################
 

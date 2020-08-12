@@ -1,5 +1,8 @@
 # Changelog
 
+## v2.0.2
+- Threads that become special requests (and special requests that become normal threads) now have their folders renamed accordingly to avoid contents being split across different folders
+
 ## v2.0.1
 - Fix `PLEBREQUEST` threads appearing also in normal scrape
 
