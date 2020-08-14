@@ -1,6 +1,6 @@
 # Bateman's 4chan Scraper
 
-This is Bateman's 4chan scraper. It is a command line based program that saves attachments from threads on [4chan.org](https://www.4chan.org) whose OPs contain a keyword the user is interested in. Special thread requests can also be made. The unofficial 4chan archive site [4plebs.org](https://www.4plebs.org) is used to scrape threads not directly found on 4chan.
+This is Bateman's 4chan scraper. It is a command line based program that saves attachments from threads on [4chan.org](https://www.4chan.org) whose OPs contain a keyword the user is interested in. Special thread requests can also be made. The unofficial 4chan archive site [4plebs.org](https://www.4plebs.org) is used to scrape threads not directly found on 4chan. The sites' APIs are used to achieve this.
 
 ## Files
 
