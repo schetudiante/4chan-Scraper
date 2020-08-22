@@ -12,12 +12,9 @@ from sys import stdout      #   for progress bar
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
 # from hashlib import md5   #   hashing already scraped files if number not in active : currently not in use
 
-version = '2.1.0beta'
-auto_update = False # set to False during developing / wanting to stick on a version / don't check for updates
+version = '2.1.0'
+auto_update = True # set to False during developing / wanting to stick on a version / don't check for updates
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
-nofourchanArchiveBoards = ["b","bant","f","trash"] # unused, probably not implementing ifelse ifelse ifelse to save a couple of 404s
-                                                   # may also skip some still alive threads that have just dropped off the catalog
-fourchanArchiveBoards = ['3','a','aco','adv','an','asp','biz','c','cgl','ck','cm','co','d','diy','e','fa','fit','g','gd','gif','h','hc','his','hm','hr','i','ic','int','jp','k','lgbt','lit','m','mlp','mu','n','news','o','out','p','po','pol','qa','qst','r','r9k','s','s4s','sci','soc','sp','t','tg','toy','trv','tv','u','v','vg','vip','vmg','vp','vr','vrpg','vst','w','wg','wsg','wsr','x','y']
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
 num_download_threads = 4
