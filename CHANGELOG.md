@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.1.0
+- Remove internal boards list dependency
+- Remove v1.6.1 -> v2.0.0 config conversion code; v1 config no longer compatible with scraper, though I seem to be the only person who used v1 anyways so no worries
+- Add GPL2 license
+
 ## v2.0.3
 - Add /vst/ to archive boards
 - Update README to acknowledge APIs
