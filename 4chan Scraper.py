@@ -457,7 +457,10 @@ def plebrequest(boardcode,keyword):
     global boxestocheckfor,plebsHTTPHeader,configjson
     print("Searching 4plebs archive for threads on /{}/ containing \'{}\'".format(boardcode,keyword))
     opnos = []
+    boxno = 0
+    boxnos = len(boxestocheckfor["4plebs"])
     for boxtocheckfor in boxestocheckfor["4plebs"]:
+        boxno += 1
         searchjson_url = 'http://archive.4plebs.org/_/api/chan/search/?type=op&boards={}&{}={}'.format(boardcode,boxtocheckfor,keyword.replace(" ","%20"))
         cooldown_loop = True
         while cooldown_loop:
@@ -467,8 +470,11 @@ def plebrequest(boardcode,keyword):
                 if searchjson["error"] == "No results found.":
                     cooldown_loop = False
                 elif searchjson["error"].startswith("Search limit exceeded."):
-                    sleeptime = 60 #sleeptime = 5 + int(searchjson["error"][35:37].strip()) #35 to 37 hardcoded for time
-                    print("Sleeping for {} seconds (4plebs cooldown)".format(sleeptime))
+                    try:
+                        sleeptime = 1 + int(searchjson["error"][35:37].strip()) #35 to 37 hardcoded for time
+                    except:
+                        sleeptime = 30
+                    print("Sleeping for {} seconds (4plebs cooldown {}/{})".format(str(sleeptime),str(boxno),str(boxnos)))
                     sleep(sleeptime)
             else:
                 for post in searchjson["0"]["posts"]:
