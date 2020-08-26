@@ -616,15 +616,35 @@ def printhelp():
 
 ################################################################################
 
+def printTitle(title,subtitle):
+    logo = [
+    u"\u2588\u2580\u2580\u2580\u2588\u2580\u2588\u2580\u2580\u2588\u2580\u2588\u2580\u2580\u2580\u2588",
+    u"\u2588  \u2588\u2588\u2584\u2588\u2588\u2588\u2588\u2584\u2588\u2588  \u2588",
+    u"\u2588  \u2588 \u2588\u2580  \u2580\u2588 \u2588  \u2588",
+    u"\u2588\u2580\u2580\u2580\u2588      \u2588\u2580\u2580\u2580\u2588",
+    u"\u2588\u2580\u2580\u2580\u2588      \u2588\u2580\u2580\u2580\u2588",
+    u"\u2588   \u2588\u2580\u2584  \u2584\u2580\u2588   \u2588",
+    u"\u2588 \u2588\u2580\u2588\u2584\u2588\u2588\u2588\u2588\u2584\u2588\u2580\u2588 \u2588",
+    u"\u2588\u2584\u2588\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2588\u2584\u2588"]
+    plen = max(len(title),len(subtitle))
+    print(logo[0])
+    print(logo[1])
+    print(logo[2]+"  "+      "".center(plen,"~"))
+    print(logo[3]+"  "+   title.center(plen,"~"))
+    print(logo[4]+"  "+subtitle.center(plen,"~"))
+    print(logo[5]+"  "+      "".center(plen,"~"))
+    print(logo[6])
+    print(logo[7])
+    # print()
+
+################################################################################
+
 #Main Thread Here
 
 lock = threading.Lock()
 progressmsg = class_progressmsg()
 
-print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('BATEMAN\'S 4CHAN SCRAPER')
-print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version {}~~~~~'.format(version))
+printTitle("BATEMAN\'S 4CHAN SCRAPER","Version {}".format(version))
 
 #Check for updates
 if auto_update is True:
@@ -679,6 +699,10 @@ while True:
         board = input("\nWhat board to search on? ").lower().strip()
         if not board:
             print("No board supplied")
+            continue
+        elif not board in plebboards:
+            print("/{}/ is not a 4plebs board".format(board))
+            print("4plebs boards are: /{}/".format("/, /".join(plebboards)))
             continue
         keyword = input("What keyword to search 4plebs for? ").lower().replace("_"," ").strip()
         if not keyword:
