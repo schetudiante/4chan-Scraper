@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.1.1
+- Swanky new title display
+- Add 4plebs cooldown messages
+- Add error message for plebrequests made for non-4plebs boards
+
 ## v2.1.0
 - Remove internal boards list dependency
 - Remove v1.6.1 -> v2.0.0 config conversion code; v1 config no longer compatible with scraper, though I seem to be the only person who used v1 anyways so no worries

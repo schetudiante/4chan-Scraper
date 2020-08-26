@@ -12,7 +12,7 @@ from sys import stdout      #   for progress bar
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
 # from hashlib import md5   #   hashing already scraped files if number not in active : currently not in use
 
-version = '2.1.0'
+version = '2.1.1'
 auto_update = True # set to False during developing / wanting to stick on a version / don't check for updates
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -23,16 +23,13 @@ num_download_threads = 4
 
 def new_config():
     global version
-    # v1configjson = {"keywords": {}, "lastscrapeops": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
-    # v2aconfigjson = {"version": version, "keywords": {}, "specialrequests": [], "blacklistedopnos": {}, "scrapednos": {}}
-    # v2configjson = {"versioncreated":version, "boards":{}}
     return {"versioncreated":version, "boards":{}}
 
 ################################################################################
 
 def new_board():
     return {"keywords":[], "blacklist":[], "requests":[], "active":[], "doneops":[]}
-    # active/requests example [opno,keyword,[]]
+    # active/requests example [opno,keyword,[scrapednos]]
 
 ################################################################################
 
@@ -60,7 +57,6 @@ def scrape():
             for req in configjson["boards"][board]["requests"]:
                 if req[0] in configjson["boards"][board]["doneops"]:
                     print("Already scraped /{}/:{}:{}".format(board,str(req[0]),req[1]))
-                    continue
                 else:
                     requestsToDo.append([board,req[0],req[1],req[2],len(board)+len(str(req[0]))+len(req[1])])
             configjson["boards"][board]["requests"] = []
@@ -461,7 +457,10 @@ def plebrequest(boardcode,keyword):
     global boxestocheckfor,plebsHTTPHeader,configjson
     print("Searching 4plebs archive for threads on /{}/ containing \'{}\'".format(boardcode,keyword))
     opnos = []
+    boxno = 0
+    boxnos = len(boxestocheckfor["4plebs"])
     for boxtocheckfor in boxestocheckfor["4plebs"]:
+        boxno += 1
         searchjson_url = 'http://archive.4plebs.org/_/api/chan/search/?type=op&boards={}&{}={}'.format(boardcode,boxtocheckfor,keyword.replace(" ","%20"))
         cooldown_loop = True
         while cooldown_loop:
@@ -471,8 +470,11 @@ def plebrequest(boardcode,keyword):
                 if searchjson["error"] == "No results found.":
                     cooldown_loop = False
                 elif searchjson["error"].startswith("Search limit exceeded."):
-                    sleeptime = 60 #sleeptime = 5 + int(searchjson["error"][35:37].strip()) #35 to 37 hardcoded for time
-                    print("Sleeping for {} seconds (4plebs cooldown)".format(sleeptime))
+                    try:
+                        sleeptime = 1 + int(searchjson["error"][35:37].strip()) #35 to 37 hardcoded for time
+                    except:
+                        sleeptime = 30
+                    print("Sleeping for {} seconds (4plebs cooldown {}/{})".format(str(sleeptime),str(boxno),str(boxnos)))
                     sleep(sleeptime)
             else:
                 for post in searchjson["0"]["posts"]:
@@ -614,15 +616,35 @@ def printhelp():
 
 ################################################################################
 
+def printTitle(title,subtitle):
+    logo = [
+    u"\u2588\u2580\u2580\u2580\u2588\u2580\u2588\u2580\u2580\u2588\u2580\u2588\u2580\u2580\u2580\u2588",
+    u"\u2588  \u2588\u2588\u2584\u2588\u2588\u2588\u2588\u2584\u2588\u2588  \u2588",
+    u"\u2588  \u2588 \u2588\u2580  \u2580\u2588 \u2588  \u2588",
+    u"\u2588\u2580\u2580\u2580\u2588      \u2588\u2580\u2580\u2580\u2588",
+    u"\u2588\u2580\u2580\u2580\u2588      \u2588\u2580\u2580\u2580\u2588",
+    u"\u2588   \u2588\u2580\u2584  \u2584\u2580\u2588   \u2588",
+    u"\u2588 \u2588\u2580\u2588\u2584\u2588\u2588\u2588\u2588\u2584\u2588\u2580\u2588 \u2588",
+    u"\u2588\u2584\u2588\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2588\u2584\u2588"]
+    plen = max(len(title),len(subtitle))
+    print(logo[0])
+    print(logo[1])
+    print(logo[2]+"  "+      "".center(plen,"~"))
+    print(logo[3]+"  "+   title.center(plen,"~"))
+    print(logo[4]+"  "+subtitle.center(plen,"~"))
+    print(logo[5]+"  "+      "".center(plen,"~"))
+    print(logo[6])
+    print(logo[7])
+    # print()
+
+################################################################################
+
 #Main Thread Here
 
 lock = threading.Lock()
 progressmsg = class_progressmsg()
 
-print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('BATEMAN\'S 4CHAN SCRAPER')
-print('~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~Version {}~~~~~'.format(version))
+printTitle("BATEMAN\'S 4CHAN SCRAPER","Version {}".format(version))
 
 #Check for updates
 if auto_update is True:
@@ -677,6 +699,10 @@ while True:
         board = input("\nWhat board to search on? ").lower().strip()
         if not board:
             print("No board supplied")
+            continue
+        elif not board in plebboards:
+            print("/{}/ is not a 4plebs board".format(board))
+            print("4plebs boards are: /{}/".format("/, /".join(plebboards)))
             continue
         keyword = input("What keyword to search 4plebs for? ").lower().replace("_"," ").strip()
         if not keyword:
