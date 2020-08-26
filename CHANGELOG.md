@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.2.0(WIP)
+## v2.1.1
 - Swanky new title display
 - Add 4plebs cooldown messages
 - Add error message for plebrequests made for non-4plebs boards
