@@ -12,7 +12,7 @@ from sys import stdout      #   for progress bar
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
 # from hashlib import md5   #   hashing already scraped files if number not in active : currently not in use
 
-version = '2.1.2'
+version = '2.1.3'
 auto_update = True # set to False during developing / wanting to stick on a version / don't check for updates
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -76,7 +76,7 @@ def scrape():
         print("Currently not scraping any boards\n")
     else:
         for board in nonemptyBoards_keywords:
-            [all_doneops,all_active,blacklist_return] = scrapeboard(board,configjson["boards"][board]["keywords"],configjson["boards"][board]["blacklist"]+[t[0] for t in configjson["boards"][board]["requests"]],configjson["boards"][board]["active"],configjson["boards"][board]["doneops"])
+            [all_doneops,all_active,blacklist_return] = scrapeboard(board,configjson["boards"][board]["keywords"],configjson["boards"][board]["blacklist"],[t[0] for t in configjson["boards"][board]["requests"]],configjson["boards"][board]["active"],configjson["boards"][board]["doneops"])
             configjson["boards"][board]["doneops"] = all_doneops
             configjson["boards"][board]["active"] = all_active
             configjson["boards"][board]["blacklist"] = blacklist_return
@@ -88,9 +88,9 @@ def scrape():
 
 ################################################################################
 
-def scrapeboard(boardcode,keywords,blacklist,active,doneops):
+def scrapeboard(boardcode,keywords,blacklist,requestopnos,active,doneops):
     global boxestocheckfor
-    alreadyConsidered_opnos = blacklist + doneops
+    alreadyConsidered_opnos = blacklist + requestopnos + doneops
 
     #Check if current active are still what we want
     threadstoscrape = [t for t in active if not t[0] in alreadyConsidered_opnos and t[1] in keywords]

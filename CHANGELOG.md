@@ -1,5 +1,8 @@
 # Changelog
 
+## v2.1.3
+- Bugfix for special requests ending up as 'blacklisted' (in the blacklist but still unaffected as normal)
+
 ## v2.1.2
 - Blacklist now clears out opnos automatically when they are not found in the catalog
 
