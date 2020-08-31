@@ -1,5 +1,8 @@
 # Changelog
 
+## v2.1.2
+- Blacklist now clears out opnos automatically when they are not found in the catalog
+
 ## v2.1.1
 - Swanky new title display
 - Add 4plebs cooldown messages

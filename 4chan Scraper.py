@@ -12,7 +12,7 @@ from sys import stdout      #   for progress bar
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
 # from hashlib import md5   #   hashing already scraped files if number not in active : currently not in use
 
-version = '2.1.1'
+version = '2.1.2'
 auto_update = True # set to False during developing / wanting to stick on a version / don't check for updates
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -76,9 +76,10 @@ def scrape():
         print("Currently not scraping any boards\n")
     else:
         for board in nonemptyBoards_keywords:
-            [all_doneops,all_active] = scrapeboard(board,configjson["boards"][board]["keywords"],configjson["boards"][board]["blacklist"]+[t[0] for t in configjson["boards"][board]["requests"]],configjson["boards"][board]["active"],configjson["boards"][board]["doneops"])
+            [all_doneops,all_active,blacklist_return] = scrapeboard(board,configjson["boards"][board]["keywords"],configjson["boards"][board]["blacklist"]+[t[0] for t in configjson["boards"][board]["requests"]],configjson["boards"][board]["active"],configjson["boards"][board]["doneops"])
             configjson["boards"][board]["doneops"] = all_doneops
             configjson["boards"][board]["active"] = all_active
+            configjson["boards"][board]["blacklist"] = blacklist_return
             print()
     print("~Updating config~")
     saveconfig()
@@ -95,7 +96,7 @@ def scrapeboard(boardcode,keywords,blacklist,active,doneops):
     threadstoscrape = [t for t in active if not t[0] in alreadyConsidered_opnos and t[1] in keywords]
     alreadyConsidered_opnos += [t[0] for t in threadstoscrape]
     formerRequests = [t for t in active if t[1][:8] == '_OLDREQ_']
-    active = []
+    active_return = []
 
     #Board Catalog JSON
     try:
@@ -103,33 +104,38 @@ def scrapeboard(boardcode,keywords,blacklist,active,doneops):
         catalogjson_url = ("https://a.4cdn.org/{}/catalog.json".format(boardcode))
         catalogjson_file = urllib.request.urlopen(catalogjson_url)
         catalogjson = json.load(catalogjson_file)
+        blacklist_return = []
         #Search ops not considered already
         for page in catalogjson:
             for threadop in page["threads"]:
-                if not threadop["no"] in alreadyConsidered_opnos:
+                opno = threadop["no"]
+                if opno in blacklist:
+                    blacklist_return.append(opno)
+                if not opno in alreadyConsidered_opnos:
                     boxbreak=0
                     boxestocheck=[b for b in boxestocheckfor["4chan"] if b in threadop]
                     for boxtocheck in boxestocheck:
                         for keyword in keywords:
                             if keyword in threadop[boxtocheck].lower():
                                 try: #check if former request with scraped nos already
-                                    formerRequest = [t for t in formerRequests if t[0] == threadop["no"]][0]
+                                    formerRequest = [t for t in formerRequests if t[0] == opno][0]
                                     formerRequest_nos = formerRequest[2]
                                     try:
-                                        folder_old = "{}\\{} {}".format(boardcode,str(threadop["no"]),formerRequest[1][8:])
-                                        folder_new = "{}\\{} {}".format(boardcode,str(threadop["no"]),keyword)
+                                        folder_old = "{}\\{} {}".format(boardcode,str(opno),formerRequest[1][8:])
+                                        folder_new = "{}\\{} {}".format(boardcode,str(opno),keyword)
                                         os.rename(folder_old,folder_new)
                                     except:
                                         pass
                                 except:
                                     formerRequest_nos = []
-                                threadstoscrape.append([threadop["no"],keyword,formerRequest_nos])
+                                threadstoscrape.append([opno,keyword,formerRequest_nos])
                                 boxbreak=1
                                 break
                         if boxbreak==1:
                             break
     except:
         print("Error: Cannot load catalog for /{}/".format(boardcode))
+        blacklist_return = blacklist
 
     if threadstoscrape:
         #Compute padding for progress bar placement:
@@ -139,11 +145,11 @@ def scrapeboard(boardcode,keywords,blacklist,active,doneops):
         for ttsp in threadstoscrape_padded:
             result = scrapethread(boardcode,*ttsp)
             if result[0] == 'keep':
-                active.append([ttsp[0],ttsp[1],result[1]])
+                active_return.append([ttsp[0],ttsp[1],result[1]])
             else:
                 doneops.insert(0,ttsp[0])
 
-    return [doneops,active]
+    return [doneops,active_return,blacklist_return]
 
 ################################################################################
 
