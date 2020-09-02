@@ -12,8 +12,7 @@ from sys import stdout      #   for progress bar
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
 # from hashlib import md5   #   hashing already scraped files if number not in active : currently not in use
 
-version = '2.1.3'
-auto_update = True # set to False during developing / wanting to stick on a version / don't check for updates
+version = '2.1.4'
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
@@ -566,44 +565,6 @@ class class_progressmsg():
 
 ################################################################################
 
-def update_scraper():
-    def download_update(downloadVersion):
-        try:
-            fpath = os.path.realpath(__file__)
-            latestVersionProgram_url = "https://raw.githubusercontent.com/SelfAdjointOperator/4chan-Scraper/{}/4chan%20Scraper.py".format(downloadVersion)
-            urllib.request.urlretrieve(latestVersionProgram_url,fpath+".tmp")
-            os.remove(fpath)
-            os.rename(fpath+".tmp",fpath)
-            return True
-        except:
-            return False
-
-    try:
-        print("Checking for updates")
-        latestVersionJson_url = "https://api.github.com/repos/selfadjointoperator/4chan-scraper/releases/latest"
-        latestVersionJson_file = urllib.request.urlopen(latestVersionJson_url)
-        latestVersionJson = json.load(latestVersionJson_file)
-        webversionv = latestVersionJson["tag_name"]
-        if webversionv[1:] == version: #versions always vX.Y.Z; remove v
-            print("Latest version running")
-        else:
-            print("Downloading new version {}".format(webversionv))
-            if download_update(webversionv) is True:
-                print("Restarting new version in 3",end="",flush=True)
-                for i in range(3):
-                    sleep(1)
-                    print("\b{}".format(str(2-i)),end="",flush=True)
-                os.startfile(os.path.realpath(__file__))
-                raise SystemExit
-            else:
-                print("Error: Unable to download updates; running current version")
-    except SystemExit:
-        raise SystemExit
-    except:
-        print("Error: Unable to check for updates; running current version")
-
-################################################################################
-
 def printhelp():
         print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made. 4plebs is also sourced")
         print("The file 'scraperconfig.json' stores the program's config in the program's directory")
@@ -652,10 +613,8 @@ progressmsg = class_progressmsg()
 
 printTitle("BATEMAN\'S 4CHAN SCRAPER","Version {}".format(version))
 
-#Check for updates
-if auto_update is True:
-    print()
-    update_scraper()
+#Inform of auto-updating removed
+print("\nAuto-updating now removed; use git to pull latest updates")
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.json'):

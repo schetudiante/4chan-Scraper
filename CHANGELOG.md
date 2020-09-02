@@ -1,5 +1,8 @@
 # Changelog
 
+## v2.1.4
+- Auto-updating now removed: use `git` to pull latest updates
+
 ## v2.1.3
 - Bugfix for special requests ending up as 'blacklisted' (in the blacklist but still unaffected as normal)
 
