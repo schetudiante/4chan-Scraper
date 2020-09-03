@@ -1,8 +1,5 @@
-##################################
-#####BATEMAN'S 4CHAN SCRAPER######
-##################################
-##github.com/SelfAdjointOperator##
-##################################
+
+"""https://github.com/SelfAdjointOperator/4chan-Scraper"""
 
 import urllib.request       #   getting files from web
 import json                 #   config file and api pages jsons to and from dictionary
@@ -11,8 +8,10 @@ import threading            #   multiple simultaneous downloads
 from sys import stdout      #   for progress bar
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
 # from hashlib import md5   #   hashing already scraped files if number not in active : currently not in use
+# SAO Suite imports
+from saosuite.saotitle import saotitle
 
-version = '2.1.4'
+version = '2.2.0beta'
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
@@ -554,14 +553,15 @@ class class_progressmsg():
 
 ################################################################################
 
-# def gethashhex(path,blocksize=65536):
-#     with open(path,'rb') as file:
-#         hasher = md5()
-#         buffer = file.read(blocksize)
-#         while len(buffer) > 0:
-#             hasher.update(buffer)
-#             buffer = file.read(blocksize)
-#     return hasher.hexdigest()
+def gethashhex(path,blocksize=65536):
+    pass
+    # with open(path,'rb') as file:
+    #     hasher = md5()
+    #     buffer = file.read(blocksize)
+    #     while len(buffer) > 0:
+    #         hasher.update(buffer)
+    #         buffer = file.read(blocksize)
+    # return hasher.hexdigest()
 
 ################################################################################
 
@@ -583,38 +583,11 @@ def printhelp():
 
 ################################################################################
 
-def printTitle(title,subtitle):
-    logo = [
-    u"\u2588\u2580\u2580\u2580\u2588\u2580\u2588\u2580\u2580\u2588\u2580\u2588\u2580\u2580\u2580\u2588",
-    u"\u2588  \u2588\u2588\u2584\u2588\u2588\u2588\u2588\u2584\u2588\u2588  \u2588",
-    u"\u2588  \u2588 \u2588\u2580  \u2580\u2588 \u2588  \u2588",
-    u"\u2588\u2580\u2580\u2580\u2588      \u2588\u2580\u2580\u2580\u2588",
-    u"\u2588\u2580\u2580\u2580\u2588      \u2588\u2580\u2580\u2580\u2588",
-    u"\u2588   \u2588\u2580\u2584  \u2584\u2580\u2588   \u2588",
-    u"\u2588 \u2588\u2580\u2588\u2584\u2588\u2588\u2588\u2588\u2584\u2588\u2580\u2588 \u2588",
-    u"\u2588\u2584\u2588\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2588\u2584\u2588"]
-    plen = max(len(title),len(subtitle))
-    print(logo[0])
-    print(logo[1])
-    print(logo[2]+"  "+      "".center(plen,"~"))
-    print(logo[3]+"  "+   title.center(plen,"~"))
-    print(logo[4]+"  "+subtitle.center(plen,"~"))
-    print(logo[5]+"  "+      "".center(plen,"~"))
-    print(logo[6])
-    print(logo[7])
-    # print()
-
-################################################################################
-
 #Main Thread Here
-
 lock = threading.Lock()
 progressmsg = class_progressmsg()
 
-printTitle("BATEMAN\'S 4CHAN SCRAPER","Version {}".format(version))
-
-#Inform of auto-updating removed
-print("\nAuto-updating now removed; use git to pull latest updates")
+saotitle.printTitle(title="Bateman\'s 4chan Scraper",subtitle="Version {}".format(version),newline=False)
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.json'):

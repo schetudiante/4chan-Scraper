@@ -1,5 +1,8 @@
 # Changelog
 
+## v2.2.0beta
+- Remove auto-update script: use Git to update repository instead
+
 ## v2.1.4
 - Auto-updating now removed: use `git` to pull latest updates
 
