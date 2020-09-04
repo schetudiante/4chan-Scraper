@@ -11,7 +11,7 @@ from time import sleep,time #   sleep if 4plebs search cooldown reached, restart
 # SAO Suite imports
 from saosuite.saotitle import saotitle
 
-version = '2.2.0beta'
+version = '3.0.0alpha'
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebboards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
