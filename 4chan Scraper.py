@@ -10,6 +10,7 @@ from time import sleep,time #   sleep if 4plebs search cooldown reached, restart
 # from hashlib import md5   #   hashing already scraped files if number not in active : currently not in use
 # SAO Suite imports
 from saosuite.saotitle import saotitle
+from saosuite.saostatusmsgs import progmsg
 
 version = '3.0.0alpha'
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
@@ -172,7 +173,7 @@ def scrapethread(boardcode,threadopno,keyword,scrapednos,padding):
         return ['keep',scrapednos]
 
     #Scrape files
-    progressmsg.progmsg(msg="Scraping /{}/:{}:{} {}".format(boardcode,str(threadopno),keyword,' '*padding),of=len(impostslist))
+    pm.progmsg(msg="Scraping /{}/:{}:{} {}".format(boardcode,str(threadopno),keyword,' '*padding),of=len(impostslist))
     keepflag = 0
 
     postbuffers = [[] for i in range(num_download_threads)]
@@ -183,7 +184,7 @@ def scrapethread(boardcode,threadopno,keyword,scrapednos,padding):
                 try:
                     postbuffers[dtid] = impostslist.pop(0)
                     if postbuffers[dtid]["no"] in scrapednos:
-                        progressmsg.tick()
+                        pm.tick()
                         continue
                 except:
                     return
@@ -193,14 +194,14 @@ def scrapethread(boardcode,threadopno,keyword,scrapednos,padding):
                         try:
                             os.makedirs('{}\\thumbs'.format(threadaddress),exist_ok=True)
                         except:
-                            progressmsg.progmsg(msg="Error: failed to create folder \'{}\\thumbs\' ".format(threadaddress))
+                            pm.progmsg(msg="Error: failed to create folder \'{}\\thumbs\' ".format(threadaddress))
                             keepflag = 1
                             break
                 result = scrapefile(threadaddress,postbuffers[dtid],modus,boardcode,threadopno,keyword)
                 with lock:
                     if result == 'success':
                         scrapednos.append(postbuffers[dtid]["no"])
-                        progressmsg.tick()
+                        pm.tick()
                         break
                     elif result == 'keep':
                         keepflag = 1
@@ -213,7 +214,7 @@ def scrapethread(boardcode,threadopno,keyword,scrapednos,padding):
         t.start()
     for t in download_threads:
         t.join()
-    progressmsg.finish()
+    pm.finish()
 
     #Delete empty folder (or / and thumbs subfolder)
     if 'thumbs' in os.listdir(threadaddress) and not [f for f in os.listdir('{}\\thumbs'.format(threadaddress))]:
@@ -313,7 +314,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             "File /{}/:{}:{}:{}(thumb) not found on 4plebs ",
             "Error: Cannot load 4plebs file /{}/:{}:{}:{}(thumb) "]
         with lock:
-            progressmsg.progmsg(msg=sf_errors[num].format(boardcode,threadopno,keyword,str(post["no"])))
+            pm.progmsg(msg=sf_errors[num].format(boardcode,threadopno,keyword,str(post["no"])))
 
     if modus == '4chan':
         try:
@@ -503,56 +504,6 @@ def plebrequest(boardcode,keyword):
 
 ################################################################################
 
-class class_progressmsg():
-    def __init__(self):
-        self.resetvars()
-
-    def resetvars(self):
-        self.msg = ""
-        self.pos = 0
-        self.of = 1
-        self.bsnum = 0
-        self.active = False
-
-    def progmsg(self,*args,**kwargs):
-        if 'msg' in kwargs:
-            self.msg = kwargs['msg']
-        if 'pos' in kwargs:
-            self.pos = int(kwargs['pos'])
-        if 'of' in kwargs:
-            self.of = kwargs['of']
-        if self.active == True:
-            stdout.write('\n')
-            stdout.flush()
-        stdout.write(self.msg)
-        stdout.flush()
-        self.printprog()
-        self.active = True
-
-    def printprog(self):
-        hashund = ('#'*int(10*(self.pos/self.of))).ljust(10,'_')
-        prog = '[{}] ({}/{})'.format(hashund,self.pos,self.of)
-        self.bsnum = len(prog)
-        stdout.write(prog)
-        stdout.flush()
-
-    def tick(self,times=1):
-        if self.active:
-            self.pos += times
-            self.pos = min([self.pos,self.of])
-            stdout.write('\b'*self.bsnum)
-            self.printprog()
-            if self.pos == self.of:
-                self.finish()
-
-    def finish(self):
-        if self.active:
-            stdout.write('\n')
-            stdout.flush()
-        self.resetvars()
-
-################################################################################
-
 def gethashhex(path,blocksize=65536):
     pass
     # with open(path,'rb') as file:
@@ -585,7 +536,7 @@ def printhelp():
 
 #Main Thread Here
 lock = threading.Lock()
-progressmsg = class_progressmsg()
+pm = progmsg.progmsg()
 
 saotitle.printTitle(title="Bateman\'s 4chan Scraper",subtitle="Version {}".format(version),newline=False)
 
