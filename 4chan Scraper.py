@@ -5,12 +5,11 @@ import urllib.request       #   getting files from web
 import json                 #   config file and api pages jsons to and from dictionary
 import os                   #   managing folders and update files
 import threading            #   multiple simultaneous downloads
-from sys import stdout      #   for progress bar
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
-# from hashlib import md5   #   hashing already scraped files if number not in active : currently not in use
+
 # SAO Suite imports
-from saosuite.saotitle import saotitle
-from saosuite.saostatusmsgs import progmsg
+from saosuite import saotitle
+from saosuite import saostatusmsgs
 
 version = '3.0.0alpha'
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
@@ -173,7 +172,7 @@ def scrapethread(boardcode,threadopno,keyword,scrapednos,padding):
         return ['keep',scrapednos]
 
     #Scrape files
-    pm.progmsg(msg="Scraping /{}/:{}:{} {}".format(boardcode,str(threadopno),keyword,' '*padding),of=len(impostslist))
+    pm.progressmsg(msg="Scraping /{}/:{}:{} {}".format(boardcode,str(threadopno),keyword,' '*padding),of=len(impostslist))
     keepflag = 0
 
     postbuffers = [[] for i in range(num_download_threads)]
@@ -194,7 +193,7 @@ def scrapethread(boardcode,threadopno,keyword,scrapednos,padding):
                         try:
                             os.makedirs('{}\\thumbs'.format(threadaddress),exist_ok=True)
                         except:
-                            pm.progmsg(msg="Error: failed to create folder \'{}\\thumbs\' ".format(threadaddress))
+                            pm.progressmsg(msg="Error: failed to create folder \'{}\\thumbs\' ".format(threadaddress))
                             keepflag = 1
                             break
                 result = scrapefile(threadaddress,postbuffers[dtid],modus,boardcode,threadopno,keyword)
@@ -314,7 +313,7 @@ def scrapefile(threadaddress,post,modus,boardcode,threadopno,keyword):
             "File /{}/:{}:{}:{}(thumb) not found on 4plebs ",
             "Error: Cannot load 4plebs file /{}/:{}:{}:{}(thumb) "]
         with lock:
-            pm.progmsg(msg=sf_errors[num].format(boardcode,threadopno,keyword,str(post["no"])))
+            pm.progressmsg(msg=sf_errors[num].format(boardcode,threadopno,keyword,str(post["no"])))
 
     if modus == '4chan':
         try:
@@ -504,18 +503,6 @@ def plebrequest(boardcode,keyword):
 
 ################################################################################
 
-def gethashhex(path,blocksize=65536):
-    pass
-    # with open(path,'rb') as file:
-    #     hasher = md5()
-    #     buffer = file.read(blocksize)
-    #     while len(buffer) > 0:
-    #         hasher.update(buffer)
-    #         buffer = file.read(blocksize)
-    # return hasher.hexdigest()
-
-################################################################################
-
 def printhelp():
         print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made. 4plebs is also sourced")
         print("The file 'scraperconfig.json' stores the program's config in the program's directory")
@@ -536,9 +523,9 @@ def printhelp():
 
 #Main Thread Here
 lock = threading.Lock()
-pm = progmsg.progmsg()
+pm = saostatusmsgs.progressmsg()
 
-saotitle.printTitle(title="Bateman\'s 4chan Scraper",subtitle="Version {}".format(version),newline=False)
+saotitle.printLogoTitle(title="Bateman\'s 4chan Scraper",subtitle="Version {}".format(version),newline=False)
 
 #Load or create config JSON
 if os.path.exists('scraperconfig.json'):
