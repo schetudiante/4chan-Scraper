@@ -22,7 +22,7 @@ num_download_threads = 4
 
 ################################################################################
 
-def scrape(): #TODO main WIP for finishing here: need tpt_updateTask
+def scrape():
     nonemptyBoards_special = [board for board in cm.tpt_gettiers("boards") if cm.tpt_getTasksInTier("boards/{}".format(board),"special")]
     if not nonemptyBoards_special:
         print("Currently no special requests")
@@ -35,29 +35,29 @@ def scrape(): #TODO main WIP for finishing here: need tpt_updateTask
                     print("Already scraped /{}/:{}:{}".format(board,str(req[0]),req[1]))
                 else:
                     requestsToDo.append([board,req[0],req[1],req[2],len(board)+len(str(req[0]))+len(req[1])])
-            # configjson["boards"][board]["requests"] = [] TODO
-            # cm.tpt_touch("boards/{}".format(board)) = [] TODO
+            cm.tpt_pruneTasks("boards/{}".format(board),tiers=["special"],idnos_bl=True,idnos_done=True)
         if requestsToDo:
             maxpad = max([rtd[4] for rtd in requestsToDo])
             for rtd in requestsToDo:
                 rtd[4] = maxpad - rtd[4]
                 result = scrapeThread(*rtd)
                 if result[0] == 'keep':
-                    # cm.tpt_getTasksInTier("boards/{}".format(rtd[0]),"special").append() TODO
-                    configjson["boards"][rtd[0]]["requests"].append([rtd[1],rtd[2],result[1]])
+                    cm.tpt_updateTask("boards/{}".format(rtd[0]),rtd[1],result[1])
                 else:
-                    configjson["boards"][rtd[0]]["doneops"].insert(0,rtd[1])
+                    cm.tpt_finishTask("boards/{}".format(rtd[0]),rtd[1])
 
     print()
-    nonemptyBoards_keywords = [b for b in configjson["boards"] if configjson["boards"][b]["keywords"]]
+    nonemptyBoards_keywords = [board for board in cm.tpt_gettiers("boards") if cm.tpt_getkeywords_wl("boards/{}".format(board))]
     if not nonemptyBoards_keywords:
         print("Currently not scraping any boards\n")
     else:
         for board in nonemptyBoards_keywords:
-            [all_doneops,all_active,blacklist_return] = scrapeBoard(board,configjson["boards"][board]["keywords"],configjson["boards"][board]["blacklist"],[t[0] for t in configjson["boards"][board]["requests"]],configjson["boards"][board]["active"],configjson["boards"][board]["doneops"])
-            configjson["boards"][board]["doneops"] = all_doneops
-            configjson["boards"][board]["active"] = all_active
-            configjson["boards"][board]["blacklist"] = blacklist_return
+            finishedTasks_idnos,all_active,blacklist_return = scrapeBoard(board,cm.tpt_getkeywords_wl("boards/{}".format(board)),cm.tpt_getidnos_bl("boards/{}".format(board)),[t[0] for t in cm.tpt_getTasksInTier("boards/{}".format(board),"special")],cm.tpt_getTasksInTier("boards/{}".format(board),"normal"),cm.tpt_getidnos_done("boards/{}".format(board)))
+            for finishedTask_idno in finishedTasks_idnos:
+                cm.tpt_finishTask("boards/{}".format(board),finishedTask_idno)
+            for task in all_active:
+                cm.tpt_updateTask("boards/{}".format(board),task[0],task[2])
+            cm.tpt_idnos_blAdd("boards/{}".format(board),blacklist_return)
             print()
     print("~Updating config~")
     # saveconfig()
@@ -72,7 +72,7 @@ def scrapeBoard(boardcode,keywords,blacklist,requestopnos,active,doneops):
     #Check if current active are still what we want
     threadstoscrape = [t for t in active if not t[0] in alreadyConsidered_opnos and t[1] in keywords]
     alreadyConsidered_opnos += [t[0] for t in threadstoscrape]
-    formerRequests = [t for t in active if t[1][:8] == '_OLDREQ_']
+    formerRequests = [t for t in active if t[1][:9] == '_DEMOTED_']
     active_return = []
 
     #Board Catalog JSON
@@ -82,6 +82,7 @@ def scrapeBoard(boardcode,keywords,blacklist,requestopnos,active,doneops):
         catalogjson_file = urllib.request.urlopen(catalogjson_url)
         catalogjson = json.load(catalogjson_file)
         blacklist_return = []
+        completedOpnosReturn = []
         #Search ops not considered already
         for page in catalogjson:
             for threadop in page["threads"]:
@@ -124,9 +125,9 @@ def scrapeBoard(boardcode,keywords,blacklist,requestopnos,active,doneops):
             if result[0] == 'keep':
                 active_return.append([ttsp[0],ttsp[1],result[1]])
             else:
-                doneops.insert(0,ttsp[0])
+                completedOpnosReturn.append(ttsp[0])
 
-    return [doneops,active_return,blacklist_return]
+    return [completedOpnosReturn,active_return,blacklist_return]
 
 ################################################################################
 
