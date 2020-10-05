@@ -25,84 +25,78 @@ num_download_threads = 4
 def scrape():
     cm.disableAutosave()
     # do special requests
-    nonemptyBoards_special = [board for board in cm.valueGet("boards") if cm.tpt_getTasksInTier("boards/{}".format(board),"special")]
+    nonemptyBoards_special = [board for board in cm.valueGet("downloaded") if cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]
     if not nonemptyBoards_special:
         print("Currently no special requests")
     else:
         print("~Doing special requests~")
         paddingLength = 0
         for board in nonemptyBoards_special:
-            for task in cm.tpt_pruneTasks("boards/{}".format(board),tiers=["special"],idnos_done=True)["special"]:
+            for task in cm.tpt_pruneTasks("downloaded/{}".format(board),tiers=["special"],idnos_done=True)["special"]:
                 print("Already scraped /{}/:{}:{}".format(board,str(task[0]),task[1]))
-            paddingLength = max(paddingLength,max([len(task[1]) for task in cm.tpt_getTasksInTier("boards/{}".format(board),"special")]))
+            paddingLength = max(paddingLength,max([len(task[1]) for task in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]))
         for board in nonemptyBoards_special:
-            for task in cm.tpt_getTasksInTier("boards/{}".format(board),"special"):
+            for task in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special"):
                 result = scrapeThread(board,*task,paddingLength)
                 if result[0] == 'keep':
-                    cm.tpt_updateTaskByIdno("boards/{}".format(board),task[0],result[1])
+                    cm.tpt_updateTaskByIdno("downloaded/{}".format(board),task[0],result[1])
                 else:
-                    cm.tpt_finishTaskByIdno("boards/{}".format(board),task[0])
+                    cm.tpt_finishTaskByIdno("downloaded/{}".format(board),task[0])
     print()
 
     # do normal scraping
-    # nonemptyBoards_keywords = [board for board in cm.valueGet("boards") if cm.tpt_getkeywords_wl("boards/{}".format(board))]
-    # if not nonemptyBoards_keywords:
-    #     print("Currently not scraping any boards\n")
-    # else:
-    #     for board in nonemptyBoards_keywords:
-    #         keywords_wl = cm.tpt_getkeywords_wl("boards/{}".format(board))
-    #         idnos_bl = cm.tpt_getidnos_bl("boards/{}".format(board))
-    #         idnos_done = cm.tpt_getidnos_done("boards/{}".format(board))
+    if not (nonemptyBoards_keywords := [board for board in cm.valueGet("downloaded") if cm.tpt_getkeywords_wl("downloaded/{}".format(board))]):
+        print("Currently not scraping any boards\n")
+    else:
+        for board in nonemptyBoards_keywords:
+            keywords_wl = cm.tpt_getkeywords_wl("downloaded/{}".format(board))
+            idnos_bl = cm.tpt_getidnos_bl("downloaded/{}".format(board))
+            idnos_done = cm.tpt_getidnos_done("downloaded/{}".format(board))
 
-    #         #Board Catalog JSON
-    #         try:
-    #             print("~Getting JSON for catalog of /{}/~".format(board))
-    #             catalogjson_url = ("https://a.4cdn.org/{}/catalog.json".format(board))
-    #             catalogjson_file = urllib.request.urlopen(catalogjson_url)
-    #             catalogjson = json.load(catalogjson_file)
-    #             blacklist_expired = [t for t in idnos_bl]
-    #             #Search ops not considered already
-    #             for page in catalogjson:
-    #                 for threadop in page["threads"]:
-    #                     opno = threadop["no"]
-    #                     if opno in idnos_bl:
-    #                         blacklist_expired.remove(opno)
-    #                     # if not opno in alreadyConsidered_opnos:
-    #                     boxbreak = False
-    #                     boxestocheck=[box for box in boxestocheckfor["4chan"] if box in threadop]
-    #                     for boxtocheck in boxestocheck:
-    #                         for keyword in keywords_wl:
-    #                             if keyword in threadop[boxtocheck].lower():
-    #                                 # what about cleansing no longer interested tasks?
-    #                                 cm.tpt_promoteTaskToByIdno("boards/{}".format(board),opno,keyword=keyword,promotionTier="normal")
-    #                                 boxbreak = True
-    #                                 break
-    #                         if boxbreak:
-    #                             break
-    #         except:
-    #             print("Error: Cannot load catalog for /{}/".format(board))
-    #             blacklist_expired = []
-    #         # try:
-    #         #     folder_old = "{}\\{} {}".format(board,str(opno),formerRequest[1][9:])
-    #         #     folder_new = "{}\\{} {}".format(board,str(opno),keyword)
-    #         #     os.rename(folder_old,folder_new)
-    #         # except:
-    #         #     pass
-    #         if threadstoscrape:
-    #             #Compute padding for progress bar placement:
-    #             maxsize = max([len(str(t[0]))+len(t[1]) for t in threadstoscrape])
-    #             threadstoscrape = [t+[maxsize-(len(str(t[0]))+len(t[1]))] for t in threadstoscrape]
-    #             #Actually do the scraping now
-    #             for tts in threadstoscrape:
-    #                 result = scrapeThread(board,*tts)
-    #                 if result[0] == 'keep':
-    #                     cm.tpt_promoteTaskToByIdno("boards/{}".format(board),tts[0],keyword=tts[1],promotionTier="normal")
-    #                     cm.tpt_updateTaskByIdno("boards/{}".format(board),tts[0],result[1])
-    #                 else:
-    #                     cm.tpt_finishTaskByIdno("boards/{}".format(board),tts[0])
-
-    #         cm.tpt_idnos_blRemove("boards/{}".format(board),blacklist_expired)
-    #         print()
+            #Board Catalog JSON
+            try:
+                print("~Getting JSON for catalog of /{}/~".format(board))
+                catalogjson_url = ("https://a.4cdn.org/{}/catalog.json".format(board))
+                catalogjson_file = urllib.request.urlopen(catalogjson_url)
+                catalogjson = json.load(catalogjson_file)
+                blacklist_expired = [t for t in idnos_bl]
+                #Search ops not considered already
+                for page in catalogjson:
+                    for threadop in page["threads"]:
+                        opno = threadop["no"]
+                        if opno in idnos_bl:
+                            blacklist_expired.remove(opno)
+                        if opno in idnos_done:
+                            continue
+                        boxbreak = False
+                        boxestocheck=[box for box in boxestocheckfor["4chan"] if box in threadop]
+                        for boxtocheck in boxestocheck:
+                            for keyword in keywords_wl:
+                                if keyword in threadop[boxtocheck].lower():
+                                    cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="normal") # manage folders here
+                                    boxbreak = True
+                                    break
+                            if boxbreak:
+                                break
+                cm.tpt_pruneTasks("downloaded/{}".format(board),tiers=["normal"],keywords_wl=True,idnos_bl=True,idnos_done=True)
+                tasksToScrape = cm.tpt_getTasksInTier("downloaded/{}".format(board),"normal")
+                paddingLength = max([len(task[1]) for task in tasksToScrape]) if tasksToScrape else 0
+                for task in tasksToScrape:
+                    if (result := scrapeThread(board,*task,paddingLength))[0] == 'keep':
+                        # cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),tts[0],keyword=tts[1],promotionTier="normal")
+                        cm.tpt_updateTaskByIdno("downloaded/{}".format(board),task[0],result[1])
+                    else:
+                        cm.tpt_finishTaskByIdno("downloaded/{}".format(board),task[0])
+                cm.tpt_idnos_blRemove("downloaded/{}".format(board),blacklist_expired)
+                print()
+            except:
+                print("Error: Cannot load catalog for /{}/".format(board))
+            # try:
+            #     folder_old = "{}\\{} {}".format(board,str(opno),formerRequest[1][9:])
+            #     folder_new = "{}\\{} {}".format(board,str(opno),keyword)
+            #     os.rename(folder_old,folder_new)
+            # except:
+            #     pass
 
     print("~Updating config~")
     cm.enableAutosave()
@@ -351,9 +345,9 @@ def scrapeFile(threadaddress,post,modus,boardcode,threadopno,keyword):
 
 def viewKeywords():
     someKeywords = False
-    for board in cm.valueGet("boards"):
+    for board in cm.valueGet("downloaded"):
         cm.denyNextAutosave()
-        keywords_wl = cm.tpt_getkeywords_wl("boards/{}".format(board))
+        keywords_wl = cm.tpt_getkeywords_wl("downloaded/{}".format(board))
         if keywords_wl:
             if not someKeywords:
                 print("Currently scraping:")
@@ -369,9 +363,9 @@ def viewKeywords():
 
 def viewRequests():
     someRequests = False
-    for board in cm.valueGet("boards"):
+    for board in cm.valueGet("downloaded"):
         cm.denyNextAutosave()
-        requests = cm.tpt_getTasksInTier("boards/{}".format(board),"special")
+        requests = cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")
         if requests:
             if not someRequests:
                 print("Current special requests:")
@@ -388,9 +382,9 @@ def viewRequests():
 
 def viewBlacklisting():
     someBlacklisted = False
-    for board in cm.valueGet("boards"):
+    for board in cm.valueGet("downloaded"):
         cm.denyNextAutosave()
-        idnos_bl = cm.tpt_getidnos_bl("boards/{}".format(board))
+        idnos_bl = cm.tpt_getidnos_bl("downloaded/{}".format(board))
         if idnos_bl:
             if not someBlacklisted:
                 print("Currently blacklisting:")
@@ -431,12 +425,12 @@ def plebRequest(boardcode,keyword):
                     opnos.append(int(post["num"]))
                 cooldown_loop = False
 
-    opnos = list(set(opnos).difference(set([req[0] for req in cm.tpt_getTasksInTier("boards/{}".format(boardcode),"special")])))
+    opnos = list(set(opnos).difference(set([req[0] for req in cm.tpt_getTasksInTier("downloaded/{}".format(boardcode),"special")])))
     if opnos:
         opnos_len = len(opnos)
         print("Added {} special request{}".format(opnos_len,"" if opnos_len==1 else "s"))
         for opno in opnos:
-            cm.tpt_promoteTaskToByIdno("boards/{}".format(board),opno,keyword=keyword,promotionTier="special")
+            cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="special")
             print("/{}/:{}:{}".format(boardcode,str(opno),keyword))
     else:
         print("No more special requests added")
@@ -448,18 +442,19 @@ lock = threading.Lock()
 pm = saostatusmsgs.progressmsg()
 
 saotitle.printLogoTitle(title="Bateman\'s 4chan Scraper",subtitle="Version {}".format(version))
-cm = saoconfigmanager.configmanager(filename="scraperconfig.json",default={"versioncreated":version, "boards":{}})
+cm = saoconfigmanager.configmanager(filename="scraperconfig.json",default={"versioncreated":version, "downloaded":{}})
 
 if saovcs.olderThan(cm.valueGet("versioncreated"),"3.0.0"):
     # update config from v2 to v3
-    for board in cm.valueGet("boards"):
+    for board in cm.valueGet("downloaded"):
         cm.denyNextAutosave(5)
-        cm.valueMove("boards/{}/keywords".format(board),"boards/{}/keywords_wl".format(board))
-        cm.valueMove("boards/{}/blacklist".format(board),"boards/{}/idnos_bl".format(board))
-        cm.valueMove("boards/{}/doneops".format(board),"boards/{}/idnos_done".format(board))
-        cm.valueMove("boards/{}/active".format(board),"boards/{}/tiers/normal".format(board))
-        cm.valueMove("boards/{}/requests".format(board),"boards/{}/tiers/special".format(board))
+        cm.valueMove("boards/{}/keywords".format(board),"downloaded/{}/keywords_wl".format(board))
+        cm.valueMove("boards/{}/blacklist".format(board),"downloaded/{}/idnos_bl".format(board))
+        cm.valueMove("boards/{}/doneops".format(board),"downloaded/{}/idnos_done".format(board))
+        cm.valueMove("boards/{}/active".format(board),"downloaded/{}/tiers/normal".format(board))
+        cm.valueMove("boards/{}/requests".format(board),"downloaded/{}/tiers/special".format(board))
     cm.valueSet("versioncreated",version)
+    print("Updated config from v2 to v3")
 
 #Main loop
 while True:
@@ -503,16 +498,14 @@ while True:
             print("Error: Invalid number")
             continue
         cm.denyNextAutosave()
-        if cm.tpt_getTaskTier("boards/{}".format(board),opno) == "special":
-            cm.denyNextAutosave()
-            old_req_old_keyword = cm.tpt_getTaskByIdno("boards/{}".format(board),opno)[1]
-            cm.tpt_demoteTaskByIdno("boards/{}".format(board),opno)
-            print("Thread /{}/:{}:{} removed from special requests".format(board,str(opno),old_req_old_keyword))
+        if cm.tpt_getTaskTierByIdno("downloaded/{}".format(board),opno) == "special":
+            keyword = cm.tpt_demoteTaskByIdno("downloaded/{}".format(board),opno)[1]
+            print("Thread /{}/:{}:{} removed from special requests".format(board,str(opno),keyword))
         else:
             keyword = cm.tpt_sanitiseKeyword(input("What keyword(s) to tag request with? "))
             if not keyword:
                 keyword = "request"
-            cm.tpt_promoteTaskToByIdno("boards/{}".format(board),opno,keyword=keyword,promotionTier="special")
+            cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="special")
             print("Thread /{}/:{}:{} added to special requests".format(board,str(opno),keyword))
         # TODO: folder moving
         # try:
@@ -549,7 +542,7 @@ while True:
         except:
             print("Error: Invalid number")
             continue
-        if cm.tpt_idnos_blToggle("boards/{}".format(board),[blacklistopno])[0]:
+        if cm.tpt_idnos_blToggle("downloaded/{}".format(board),[blacklistopno])[0]:
             print("No longer blacklisting /{}/:{}".format(board,str(blacklistopno)))
         else:
             print("Now blacklisting /{}/:{}".format(board,str(blacklistopno)))
@@ -569,13 +562,13 @@ while True:
             continue
         keywordstoadd = input("Which keywords to start scraping for? ").lower().split()
         keywordstoadd = [keyword.replace("_"," ").strip() for keyword in keywordstoadd if keyword.replace("_"," ").strip()]
-        if not cm.tpt_keywords_wlAdd("boards/{}".format(board),keywordstoadd):
-            if not cm.tpt_getkeywords_wl("boards/{}".format(board)):
+        if not cm.tpt_keywords_wlAdd("downloaded/{}".format(board),keywordstoadd):
+            if not cm.tpt_getkeywords_wl("downloaded/{}".format(board)):
                 print("No keywords added for /{}/, not scraping it".format(board))
             else:
                 print("No more keywords added for /{}/".format(board))
         else:
-            print("Keywords for /{}/ updated to:".format(board),", ".join(cm.tpt_getkeywords_wl("boards/{}".format(board))))
+            print("Keywords for /{}/ updated to:".format(board),", ".join(cm.tpt_getkeywords_wl("downloaded/{}".format(board))))
 
     elif action in ["DELETE","DEL","D"]:
         if viewKeywords() is False:
@@ -584,17 +577,17 @@ while True:
         if not board:
             print("No board supplied")
             continue
-        if not cm.valuePing("boards/{}".format(board)) or not cm.tpt_getkeywords_wl("boards/{}".format(board)):
+        if not cm.valuePing("downloaded/{}".format(board)) or not cm.tpt_getkeywords_wl("downloaded/{}".format(board)):
             print("Currently not scraping /{}/".format(board))
             continue
         keywordstodel = input("Which keywords to stop scraping for? ").lower().split()
         keywordstodel = [keyword.replace("_"," ").strip() for keyword in keywordstodel if keyword.replace("_"," ").strip()]
-        if not cm.tpt_keywords_wlRemove("boards/{}".format(board),keywordstodel):
+        if not cm.tpt_keywords_wlRemove("downloaded/{}".format(board),keywordstodel):
             print("No keywords removed for /{}/".format(board))
-        elif not cm.tpt_getkeywords_wl("boards/{}".format(board)):
+        elif not cm.tpt_getkeywords_wl("downloaded/{}".format(board)):
             print("Stopped scraping /{}/".format(board))
         else:
-            print("Keywords for /{}/ updated to:".format(board),", ".join(cm.tpt_getkeywords_wl("boards/{}".format(board))))
+            print("Keywords for /{}/ updated to:".format(board),", ".join(cm.tpt_getkeywords_wl("downloaded/{}".format(board))))
 
     else:
         print("Unknown command")
