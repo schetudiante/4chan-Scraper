@@ -34,9 +34,12 @@ def scrape():
         for board in nonemptyBoards_special:
             for task in cm.tpt_pruneTasks("downloaded/{}".format(board),tiers=["special"],idnos_done=True)["special"]:
                 print("Already scraped /{}/:{}:{}".format(board,str(task[0]),task[1]))
-            paddingLength = max(paddingLength,max([len(task[1]) for task in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]))
+            try:
+                paddingLength = max(paddingLength,max([len(task[1]) for task in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]))
+            except:
+                pass
         for board in nonemptyBoards_special:
-            for task in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special"):
+            for task in [t for t in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]:
                 result = scrapeThread(board,*task,paddingLength)
                 if result[0] == 'keep':
                     cm.tpt_updateTaskByIdno("downloaded/{}".format(board),task[0],result[1])
@@ -79,7 +82,7 @@ def scrape():
                             if boxbreak:
                                 break
                 cm.tpt_pruneTasks("downloaded/{}".format(board),tiers=["normal"],keywords_wl=True,idnos_bl=True,idnos_done=True)
-                tasksToScrape = cm.tpt_getTasksInTier("downloaded/{}".format(board),"normal")
+                tasksToScrape = [t for t in cm.tpt_getTasksInTier("downloaded/{}".format(board),"normal")]
                 paddingLength = max([len(task[1]) for task in tasksToScrape]) if tasksToScrape else 0
                 for task in tasksToScrape:
                     if (result := scrapeThread(board,*task,paddingLength))[0] == 'keep':
@@ -398,45 +401,6 @@ def viewBlacklisting():
 
 ################################################################################
 
-def plebRequest(boardcode,keyword):
-    print("Searching 4plebs archive for threads on /{}/ containing \'{}\'".format(boardcode,keyword))
-    opnos = []
-    boxno = 0
-    boxnos = len(boxestocheckfor["4plebs"])
-    for boxtocheckfor in boxestocheckfor["4plebs"]:
-        boxno += 1
-        searchjson_url = 'http://archive.4plebs.org/_/api/chan/search/?type=op&boards={}&{}={}'.format(boardcode,boxtocheckfor,keyword.replace(" ","%20"))
-        cooldown_loop = True
-        while cooldown_loop:
-            searchjson_file = urllib.request.urlopen(urllib.request.Request(searchjson_url,None,{'User-Agent':plebsHTTPHeader}))
-            searchjson = json.load(searchjson_file)
-            if "error" in searchjson:
-                if searchjson["error"] == "No results found.":
-                    cooldown_loop = False
-                elif searchjson["error"].startswith("Search limit exceeded."):
-                    try:
-                        sleeptime = 1 + int(searchjson["error"][35:37].strip()) #35 to 37 hardcoded for time
-                    except:
-                        sleeptime = 30
-                    print("Sleeping for {} seconds (4plebs cooldown {}/{})".format(str(sleeptime),str(boxno),str(boxnos)))
-                    sleep(sleeptime)
-            else:
-                for post in searchjson["0"]["posts"]:
-                    opnos.append(int(post["num"]))
-                cooldown_loop = False
-
-    opnos = list(set(opnos).difference(set([req[0] for req in cm.tpt_getTasksInTier("downloaded/{}".format(boardcode),"special")])))
-    if opnos:
-        opnos_len = len(opnos)
-        print("Added {} special request{}".format(opnos_len,"" if opnos_len==1 else "s"))
-        for opno in opnos:
-            cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="special")
-            print("/{}/:{}:{}".format(boardcode,str(opno),keyword))
-    else:
-        print("No more special requests added")
-
-################################################################################
-
 #Main Thread Here
 lock = threading.Lock()
 pm = saostatusmsgs.progressmsg()
@@ -529,7 +493,41 @@ while True:
         if not keyword:
             print("No keyword supplied")
             continue
-        plebRequest(board,keyword)
+        print("Searching 4plebs archive for threads on /{}/ containing \'{}\'".format(board,keyword))
+        opnos = []
+        boxno = 0
+        boxnos = len(boxestocheckfor["4plebs"])
+        for boxtocheckfor in boxestocheckfor["4plebs"]:
+            boxno += 1
+            searchjson_url = 'http://archive.4plebs.org/_/api/chan/search/?type=op&boards={}&{}={}'.format(board,boxtocheckfor,keyword.replace(" ","%20"))
+            cooldown_loop = True
+            while cooldown_loop:
+                searchjson_file = urllib.request.urlopen(urllib.request.Request(searchjson_url,None,{'User-Agent':plebsHTTPHeader}))
+                searchjson = json.load(searchjson_file)
+                if "error" in searchjson:
+                    if searchjson["error"] == "No results found.":
+                        cooldown_loop = False
+                    elif searchjson["error"].startswith("Search limit exceeded."):
+                        try:
+                            sleeptime = 1 + int(searchjson["error"][35:37].strip()) #35 to 37 hardcoded for time
+                        except:
+                            sleeptime = 30
+                        print("Sleeping for {} seconds (4plebs cooldown {}/{})".format(str(sleeptime),str(boxno),str(boxnos)))
+                        sleep(sleeptime)
+                else:
+                    for post in searchjson["0"]["posts"]:
+                        opnos.append(int(post["num"]))
+                    cooldown_loop = False
+
+        opnos = list(set(opnos).difference(set([req[0] for req in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")])))
+        if opnos:
+            opnos_len = len(opnos)
+            print("Added {} special request{}".format(opnos_len,"" if opnos_len==1 else "s"))
+            for opno in opnos:
+                cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="special")
+                print("/{}/:{}:{}".format(board,str(opno),keyword))
+        else:
+            print("No more special requests added")
 
     elif action in ["BLACKLIST","B","BLACK","BL"]:
         viewBlacklisting()
