@@ -36,7 +36,7 @@ def scrape():
                 print("Already scraped /{}/:{}:{}".format(board,str(task[0]),task[1]))
             try:
                 paddingLength = max(paddingLength,max([len(task[1]) for task in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]))
-            except:
+            except: # if no tasks left in tier
                 pass
         for board in nonemptyBoards_special:
             for task in [t for t in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]:
@@ -81,12 +81,12 @@ def scrape():
                                     break
                             if boxbreak:
                                 break
-                cm.tpt_pruneTasks("downloaded/{}".format(board),tiers=["normal"],keywords_wl=True,idnos_bl=True,idnos_done=True)
-                tasksToScrape = [t for t in cm.tpt_getTasksInTier("downloaded/{}".format(board),"normal")]
+                for task in cm.tpt_pruneTasks("downloaded/{}".format(board),tiers=["normal"],keywords_wl=True,idnos_bl=True,idnos_done=True)["normal"]:
+                    cm.ffm_rmIfEmptyTree("downloaded/{}/{} {}".format(board,str(task[0]),task[1]))
+                tasksToScrape = cm.tpt_getTasksInTier("downloaded/{}".format(board),"normal")[:]
                 paddingLength = max([len(task[1]) for task in tasksToScrape]) if tasksToScrape else 0
                 for task in tasksToScrape:
                     if (result := scrapeThread(board,*task,paddingLength))[0] == 'keep':
-                        # cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),tts[0],keyword=tts[1],promotionTier="normal")
                         cm.tpt_updateTaskByIdno("downloaded/{}".format(board),task[0],result[1])
                     else:
                         cm.tpt_finishTaskByIdno("downloaded/{}".format(board),task[0])
@@ -94,12 +94,9 @@ def scrape():
                 print()
             except:
                 print("Error: Cannot load catalog for /{}/".format(board))
-            # try:
-            #     folder_old = "{}\\{} {}".format(board,str(opno),formerRequest[1][9:])
-            #     folder_new = "{}\\{} {}".format(board,str(opno),keyword)
-            #     os.rename(folder_old,folder_new)
-            # except:
-            #     pass
+
+    for board in cm.valueGet("downloaded"):
+        cm.ffm_rmIfEmptyTree("downloaded/{}".format(board))
 
     print("~Updating config~")
     cm.enableAutosave()
@@ -120,13 +117,8 @@ def scrapeThread(boardcode,threadopno,keyword,scrapednos,padding):
     #otherwise 'now_scrape'
     impostslist = filelist[1]
 
-    #Try to create folder
-    threadaddress=("{}\\{} {}".format(boardcode,str(threadopno),keyword))
-    try:
-        os.makedirs(threadaddress,exist_ok=True)
-    except:
-        print("Error: failed to create folder '{}'".format(threadaddress))
-        return ['keep',scrapednos]
+    threadaddress=("downloaded/{}/{} {}".format(boardcode,str(threadopno),keyword))
+    cm.ffm_makedirs("{}/thumbs".format(threadaddress))
 
     #Scrape files
     pm.progressmsg(msg="Scraping /{}/:{}:{} ".format(boardcode,str(threadopno),keyword.ljust(padding)),of=len(impostslist))
@@ -145,14 +137,6 @@ def scrapeThread(boardcode,threadopno,keyword,scrapednos,padding):
                 except IndexError:
                     return
             for modus in ['4chan','4plebs','4plebsthumbs'][filestart:]:
-                if modus == '4plebsthumbs':
-                    with lock:
-                        try:
-                            os.makedirs('{}\\thumbs'.format(threadaddress),exist_ok=True)
-                        except:
-                            pm.progressmsg(msg="Error: failed to create folder \'{}\\thumbs\' ".format(threadaddress))
-                            keepflag = 1
-                            break
                 result = scrapeFile(threadaddress,postbuffers[dtid],modus,boardcode,threadopno,keyword)
                 with lock:
                     if result == 'success':
@@ -172,17 +156,8 @@ def scrapeThread(boardcode,threadopno,keyword,scrapednos,padding):
         t.join()
     pm.finish()
 
-    #Delete empty folder (or / and thumbs subfolder)
-    if 'thumbs' in os.listdir(threadaddress) and not [f for f in os.listdir('{}\\thumbs'.format(threadaddress))]:
-        try:
-            os.rmdir('{}\\thumbs'.format(threadaddress))
-        except:
-            print("Error: Could not delete folder '{}\\thumbs'".format(threadaddress))
-    if not [f for f in os.listdir(threadaddress)]:
-        try:
-            os.rmdir(threadaddress)
-        except:
-            print("Error: Could not delete folder '{}'".format(threadaddress))
+    cm.ffm_rmIfEmptyTree(threadaddress+"/thumbs")
+    cm.ffm_rmIfEmptyTree(threadaddress)
 
     if keepflag == 0 and (filestart!=0 or filelist[2] == True):
         return ['delete']
@@ -209,10 +184,8 @@ def getFileList(boardcode,threadopno,keyword,modus):
             impostslist = [{"no":post['no'],"tim":post['tim'],"ext":post['ext'],"md564":post['md5']} for post in threadjson["posts"] if "tim" in post]
             return ['now_scrape',impostslist,'archived' in threadjson["posts"][0]]
         except Exception as e:
-            #Thread error:
             if hasattr(e,'code') and e.code == 404: # pylint: disable=E1101
                 if boardcode in plebBoards:
-                    #If 404 error and plebboard then try to get thread JSON from 4plebs
                     gfl_error(0)
                     return ['try_4plebs']
                 else:
@@ -272,7 +245,7 @@ def scrapeFile(threadaddress,post,modus,boardcode,threadopno,keyword):
 
     if modus == '4chan':
         try:
-            imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
+            imgaddress = "{}/{}{}".format(threadaddress,str(post["no"]),post["ext"])
             if os.path.exists(imgaddress):
                 if saomd5.isHashHex(imgaddress,saomd5.base64ToHex(post["md564"])):
                     sf_error(10)
@@ -299,7 +272,7 @@ def scrapeFile(threadaddress,post,modus,boardcode,threadopno,keyword):
 
     elif modus == '4plebs':
         try:
-            imgaddress = "{}\\{}{}".format(threadaddress,str(post["no"]),post["ext"])
+            imgaddress = "{}/{}{}".format(threadaddress,str(post["no"]),post["ext"])
             if os.path.exists(imgaddress):
                 if saomd5.isHashHex(imgaddress,saomd5.base64ToHex(post["md564"])):
                     sf_error(11)
@@ -322,8 +295,8 @@ def scrapeFile(threadaddress,post,modus,boardcode,threadopno,keyword):
 
     elif modus == '4plebsthumbs':
         try:
-            threadaddress = '{}\\thumbs'.format(threadaddress)
-            imgaddress = "{}\\{}.jpg".format(threadaddress,str(post["no"]))
+            threadaddress = '{}/thumbs'.format(threadaddress)
+            imgaddress = "{}/{}.jpg".format(threadaddress,str(post["no"]))
             if os.path.exists(imgaddress):
                 if saomd5.isHashHex(imgaddress,saomd5.base64ToHex(post["md564"])):
                     sf_error(12)
@@ -346,24 +319,6 @@ def scrapeFile(threadaddress,post,modus,boardcode,threadopno,keyword):
 
 ################################################################################
 
-def viewKeywords():
-    someKeywords = False
-    for board in cm.valueGet("downloaded"):
-        cm.denyNextAutosave()
-        keywords_wl = cm.tpt_getkeywords_wl("downloaded/{}".format(board))
-        if keywords_wl:
-            if not someKeywords:
-                print("Currently scraping:")
-                someKeywords = True
-            print("/{}/:".format(board),", ".join(keywords_wl))
-    if not someKeywords:
-        print("Currently not scraping any boards")
-        return False
-    else:
-        return True
-
-################################################################################
-
 def viewRequests():
     someRequests = False
     for board in cm.valueGet("downloaded"):
@@ -377,6 +332,24 @@ def viewRequests():
                 print("/{}/:{}:{}".format(board,str(request[0]),request[1]))
     if not someRequests:
         print("Currently no special requests")
+        return False
+    else:
+        return True
+
+################################################################################
+
+def viewKeywords():
+    someKeywords = False
+    for board in cm.valueGet("downloaded"):
+        cm.denyNextAutosave()
+        keywords_wl = cm.tpt_getkeywords_wl("downloaded/{}".format(board))
+        if keywords_wl:
+            if not someKeywords:
+                print("Currently scraping:")
+                someKeywords = True
+            print("/{}/:".format(board),", ".join(keywords_wl))
+    if not someKeywords:
+        print("Currently not scraping any boards")
         return False
     else:
         return True
@@ -407,16 +380,23 @@ pm = saostatusmsgs.progressmsg()
 
 saotitle.printLogoTitle(title="Bateman\'s 4chan Scraper",subtitle="Version {}".format(version))
 cm = saoconfigmanager.configmanager(filename="scraperconfig.json",default={"versioncreated":version, "downloaded":{}})
+cm.tpt_manageDirectories = True
+cm.tpt_manageDirectoriesDeleteEmptyOnUpdate = True # maybe pull this ugly stuff out into either a synced
+                                                   # part of configmanager or just code on its own here
 
 if saovcs.olderThan(cm.valueGet("versioncreated"),"3.0.0"):
     # update config from v2 to v3
-    for board in cm.valueGet("downloaded"):
+    for board in cm.valueGet("boards"):
         cm.denyNextAutosave(5)
         cm.valueMove("boards/{}/keywords".format(board),"downloaded/{}/keywords_wl".format(board))
         cm.valueMove("boards/{}/blacklist".format(board),"downloaded/{}/idnos_bl".format(board))
         cm.valueMove("boards/{}/doneops".format(board),"downloaded/{}/idnos_done".format(board))
         cm.valueMove("boards/{}/active".format(board),"downloaded/{}/tiers/normal".format(board))
         cm.valueMove("boards/{}/requests".format(board),"downloaded/{}/tiers/special".format(board))
+        if os.path.isdir(board):
+            cm.ffm_makedirs("downloaded")
+            cm.ffm_tryMove(board,"downloaded")
+        cm.valueDelete("boards")
     cm.valueSet("versioncreated",version)
     print("Updated config from v2 to v3")
 
@@ -471,13 +451,6 @@ while True:
                 keyword = "request"
             cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="special")
             print("Thread /{}/:{}:{} added to special requests".format(board,str(opno),keyword))
-        # TODO: folder moving
-        # try:
-        #     folder_old = "{}\\{} {}".format(board,str(opno),new_request[1])
-        #     folder_new = "{}\\{} {}".format(board,str(opno),keyword)
-        #     os.rename(folder_old,folder_new)
-        # except:
-        #     pass
 
     elif action in ["PLEBREQUEST","P","PR"]:
         viewRequests()
