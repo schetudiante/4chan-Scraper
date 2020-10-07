@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.0.0
+- Major overhaul to config and code management behind the scenes using my SAO suite
+- MD5 Checking: If a file already exists and its MD5 hash matches that of a file to be downloaded then the download will be skipped and the user will be informed
+
 ## v2.1.4
 - Auto-updating now removed: use `git` to pull latest updates
 
