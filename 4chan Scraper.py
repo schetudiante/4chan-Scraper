@@ -14,7 +14,7 @@ from saosuite import saoconfigmanager
 from saosuite import saovcs
 from saosuite import saomd5
 
-version = '3.0.0'
+version = '3.0.1'
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebBoards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
@@ -30,17 +30,17 @@ def scrape():
         print("Currently no special requests")
     else:
         print("~Doing special requests~")
-        paddingLength = 0
+        ljustLength = 14
         for board in nonemptyBoards_special:
             for task in cm.tpt_pruneTasks("downloaded/{}".format(board),tiers=["special"],idnos_done=True)["special"]:
                 print("Already scraped /{}/:{}:{}".format(board,str(task[0]),task[1]))
             try:
-                paddingLength = max(paddingLength,max([len(task[1]) for task in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]))
+                ljustLength = max(ljustLength,max([14+len(board)+len(str(task[0]))+len(task[1]) for task in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]))
             except: # if no tasks left in tier
                 pass
         for board in nonemptyBoards_special:
             for task in [t for t in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]:
-                result = scrapeThread(board,*task,paddingLength)
+                result = scrapeThread(board,*task,ljustLength)
                 if result[0] == 'keep':
                     cm.tpt_updateTaskByIdno("downloaded/{}".format(board),task[0],result[1])
                 else:
@@ -84,9 +84,9 @@ def scrape():
                 for task in cm.tpt_pruneTasks("downloaded/{}".format(board),tiers=["normal"],keywords_wl=True,idnos_bl=True,idnos_done=True)["normal"]:
                     cm.ffm_rmIfEmptyTree("downloaded/{}/{} {}".format(board,str(task[0]),task[1]))
                 tasksToScrape = cm.tpt_getTasksInTier("downloaded/{}".format(board),"normal")[:]
-                paddingLength = max([len(task[1]) for task in tasksToScrape]) if tasksToScrape else 0
+                ljustLength = max([14+len(board)+len(str(task[0]))+len(task[1]) for task in tasksToScrape]) if tasksToScrape else 14
                 for task in tasksToScrape:
-                    if (result := scrapeThread(board,*task,paddingLength))[0] == 'keep':
+                    if (result := scrapeThread(board,*task,ljustLength))[0] == 'keep':
                         cm.tpt_updateTaskByIdno("downloaded/{}".format(board),task[0],result[1])
                     else:
                         cm.tpt_finishTaskByIdno("downloaded/{}".format(board),task[0])
@@ -121,7 +121,7 @@ def scrapeThread(boardcode,threadopno,keyword,scrapednos,padding):
     cm.ffm_makedirs("{}/thumbs".format(threadaddress))
 
     #Scrape files
-    pm.progressmsg(msg="Scraping /{}/:{}:{} ".format(boardcode,str(threadopno),keyword.ljust(padding)),of=len(impostslist))
+    pm.progressmsg(msg="Scraping /{}/:{}:{} ".format(boardcode,str(threadopno),keyword).ljust(padding),of=len(impostslist))
     keepflag = 0
 
     postbuffers = [[] for i in range(num_download_threads)]
