@@ -14,7 +14,7 @@ from saosuite import saoconfigmanager
 from saosuite import saovcs
 from saosuite import saomd5
 
-version = '3.0.1'
+version = '3.0.2'
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebBoards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
@@ -69,6 +69,7 @@ def scrape():
                         opno = threadop["no"]
                         if opno in idnos_bl:
                             blacklist_expired.remove(opno)
+                            continue
                         if opno in idnos_done:
                             continue
                         boxbreak = False
@@ -76,7 +77,7 @@ def scrape():
                         for boxtocheck in boxestocheck:
                             for keyword in keywords_wl:
                                 if keyword in threadop[boxtocheck].lower():
-                                    cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="normal") # manage folders here
+                                    cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="normal")
                                     boxbreak = True
                                     break
                             if boxbreak:
@@ -403,7 +404,7 @@ if saovcs.olderThan(cm.valueGet("versioncreated"),"3.0.0"):
 #Main loop
 while True:
     print('\n')
-    action = input("What do you want to do? (SCRAPE/SCRAPEQUIT/REQUEST/PLEBREQUEST/BLACKLIST/VIEW/ADD/DELETE/HELP/QUIT) ").upper().strip()
+    action = input("What do you want to do? (S/SQ/R/P/B/V/A/D/HELP/Q) ").upper().strip()
     print('\n')
 
     if action in ["QUIT","Q"]:
@@ -414,21 +415,23 @@ while True:
         print("The file 'scraperconfig.json' stores the program's config in the program's directory")
         print("Scraped files are saved in nested directories in the same directory as the program\n")
 
-        print("SCRAPE      /  S: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
-        print("SCRAPEQUIT  / SQ: Scrapes then closes the program")
-        print("REQUEST     /  R: Toggle the scraping of a specially requested thread. Requests override the blacklist")
-        print("PLEBREQUEST /  P: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests")
-        print("BLACKLIST   /  B: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
-        print("VIEW        /  V: View the keywords that are currently being searched for")
-        print("ADD         /  A: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
-        print("DELETE      /  D: Delete keywords to no longer search for")
-        print("HELP        /  H: Shows this help text")
-        print("QUIT        /  Q: Closes the program")
+        print("S  /      SCRAPE: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape")
+        print("SQ /  SCRAPEQUIT: Scrapes then closes the program")
+        print("R  /     REQUEST: Toggle the scraping of a specially requested thread. Requests override the blacklist")
+        print("P  / PLEBREQUEST: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests")
+        print("B  /   BLACKLIST: Toggle the blacklisting of a thread to not be scraped by supplying the OP number")
+        print("V  /        VIEW: View the keywords that are currently being searched for")
+        print("A  /         ADD: Add keywords to search for. This is per board and keywords are separated by spaces. To search for a phrase keyword eg 'American Psycho' input 'american_psycho' ")
+        print("D  /      DELETE: Delete keywords to no longer search for")
+        print("H  /        HELP: Shows this help text")
+        print("Q  /        QUIT: Exits the program")
 
-    elif action in ["SCRAPE","S","SCRAPEQUIT","SQ"]:
+    elif action in ["SCRAPE","S"]:
         scrape()
-        if action in ["SCRAPEQUIT","SQ"]:
-            break
+
+    elif action in ["SCRAPEQUIT","SQ"]:
+        scrape()
+        break
 
     elif action in ["REQUEST","R"]:
         viewRequests()

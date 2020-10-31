@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.0.2
+- Minor change to appearance
+- Update .gitignore
+
+## v3.0.1
+- Fix progress bars alignment
+- Decided against yuki.la scraping as the website doesn't store that many attachments, and as of today I receive 403s when trying to access it
+
 ## v3.0.0
 - Major overhaul to config and code management behind the scenes using my SAO suite
 - MD5 Checking: If a file already exists and its MD5 hash matches that of a file to be downloaded then the download will be skipped and the user will be informed

@@ -9,7 +9,7 @@ Make sure to keep the `saosuite` submodule updated with Git
 
 ## Features
 
-- Scrape threads with minimal effort
+- Scrape thread attachments with minimal effort
 - Progress bar to show scraping progress
 - Add and remove boards with their own set of keywords to scrape for
 - Make special requests to scrape custom threads
