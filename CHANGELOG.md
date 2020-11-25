@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.0.3
+- Change keyword addition / deletion such that keywords are separated by commas instead of spaces
+- Bugfix: Already scraped special requests saying that they have been added when trying to add again
+- Optimise config saving
+
 ## v3.0.2
 - Minor change to appearance
 - Update .gitignore
