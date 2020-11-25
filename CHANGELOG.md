@@ -1,5 +1,8 @@
 # Changelog
 
+## v3.0.4
+- Bugfix: handle HTTP error 429 from 4plebs
+
 ## v3.0.3
 - Change keyword addition / deletion such that keywords are separated by commas instead of spaces
 - Bugfix: Already scraped special requests saying that they have been added when trying to add again

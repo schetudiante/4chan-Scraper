@@ -14,7 +14,7 @@ from saosuite import saoconfigmanager
 from saosuite import saovcs
 from saosuite import saomd5
 
-version = '3.0.3'
+version = '3.0.4'
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebBoards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
@@ -474,27 +474,31 @@ while True:
             searchjson_url = 'http://archive.4plebs.org/_/api/chan/search/?type=op&boards={}&{}={}'.format(board,boxtocheckfor,keyword.replace(" ","%20"))
             cooldown_loop = True
             while cooldown_loop:
-                searchjson_file = urllib.request.urlopen(urllib.request.Request(searchjson_url,None,{'User-Agent':plebsHTTPHeader}))
-                searchjson = json.load(searchjson_file)
-                if "error" in searchjson:
-                    if searchjson["error"] == "No results found.":
-                        cooldown_loop = False
-                    elif searchjson["error"].startswith("Search limit exceeded."):
-                        try:
-                            sleeptime = 1 + int(searchjson["error"][35:37].strip()) #35 to 37 hardcoded for time
-                        except:
-                            sleeptime = 30
-                        print("Sleeping for {} seconds (4plebs cooldown {}/{})".format(str(sleeptime),str(boxno),str(boxnos)))
-                        sleep(sleeptime)
-                else:
-                    for post in searchjson["0"]["posts"]:
-                        opnos.append(int(post["num"]))
+                try:
+                    searchjson_file = urllib.request.urlopen(urllib.request.Request(searchjson_url,None,{'User-Agent':plebsHTTPHeader}))
+                    searchjson = json.load(searchjson_file)
+                    if "error" in searchjson:
+                        if searchjson["error"] != "No results found.":
+                            print("Error loading 4plebs JSON")
+                    else:
+                        for post in searchjson["0"]["posts"]:
+                            opnos.append(int(post["num"]))
                     cooldown_loop = False
+                except urllib.request.HTTPError as e:
+                    if e.code == 429:
+                        try:
+                            sleeptime = int(json.loads(e.readline().decode("utf-8"))["error"][35:37].strip())
+                        except:
+                            sleeptime = 15
+                        print("Trying again in {} seconds (HTTP error 429 cooldown {}/{})".format(str(sleeptime),str(boxno),str(boxnos)))
+                        sleep(sleeptime)
+                    else:
+                        print("Error loading 4plebs JSON")
 
         opnos = list(set(opnos).difference(set([req[0] for req in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")])))
         if opnos:
             opnos_len = len(opnos)
-            print("Found {} thread{}".format(opnos_len,"" if opnos_len==1 else "s"))
+            print("Found {} more thread{}".format(opnos_len,"" if opnos_len==1 else "s"))
             for opno in opnos:
                 if cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="special")[0]:
                     print("Thread /{}/:{}:{} added to special requests".format(board,str(opno),keyword))
