@@ -14,7 +14,7 @@ from saosuite import saoconfigmanager
 from saosuite import saovcs
 from saosuite import saomd5
 
-version = '3.0.4'
+version = '3.0.5'
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebBoards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
