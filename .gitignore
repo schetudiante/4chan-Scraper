@@ -1,3 +1,4 @@
 gitignore Extras/
+__pycache__/
 scraperconfig.json
 /downloaded

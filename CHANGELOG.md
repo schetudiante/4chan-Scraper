@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.0.5
+- Remove saosuite submodule since it is taking a different direction (private repo for my resources)
+- Leave appropriate scripts behind for function
+- Works exactly the same as v3.0.4
+
 ## v3.0.4
 - Bugfix: handle HTTP error 429 from 4plebs
 
