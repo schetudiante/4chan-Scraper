@@ -6,6 +6,7 @@ import json                 #   config file and api pages jsons to and from dict
 import os                   #   managing folders
 import threading            #   multiple simultaneous downloads
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
+import argparse             #   for improved CLI
 
 # SAO Suite imports
 from saosuite import saotitle
@@ -14,7 +15,7 @@ from saosuite import saoconfigmanager
 from saosuite import saovcs
 from saosuite import saomd5
 
-version = '3.0.5'
+version = '3.1.0'
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebBoards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
@@ -366,212 +367,208 @@ def viewBlacklisting():
 
 ################################################################################
 
-#Main Thread Here
-lock = threading.Lock()
-pm = saostatusmsgs.progressmsg()
+if __name__ == "__main__":
+    lock = threading.Lock()
+    pm = saostatusmsgs.progressmsg()
 
-saotitle.printLogoTitle(title = "Bateman\'s 4chan Scraper", subtitle = "Version {}".format(version), newline = False)
-cm = saoconfigmanager.configmanager(filename = "scraperconfig.json", default = {"versioncreated":version, "downloaded":{}})
-cm.disableAutosave()
-cm.tpt_manageDirectories = True
-cm.tpt_manageDirectoriesDeleteEmptyOnUpdate = True # maybe pull this ugly stuff out into either a synced
-                                                   # part of configmanager or just code on its own here
+    saotitle.printLogoTitle(title = "Bateman\'s 4chan Scraper", subtitle = "Version {}".format(version), newline = False)
+    cm = saoconfigmanager.configmanager(filename = "scraperconfig.json", default = {"versioncreated":version, "downloaded":{}})
+    cm.disableAutosave()
+    cm.tpt_manageDirectories = True
+    cm.tpt_manageDirectoriesDeleteEmptyOnUpdate = True # maybe pull this ugly stuff out into either a synced
+                                                    # part of configmanager or just code on its own here
 
-if saovcs.olderThan(cm.valueGet("versioncreated"),"3.0.0"):
-    # update config from v2 to v3
-    for board in cm.valueGet("boards"):
-        cm.valueMove("boards/{}/keywords".format(board),"downloaded/{}/keywords_wl".format(board))
-        cm.valueMove("boards/{}/blacklist".format(board),"downloaded/{}/idnos_bl".format(board))
-        cm.valueMove("boards/{}/doneops".format(board),"downloaded/{}/idnos_done".format(board))
-        cm.valueMove("boards/{}/active".format(board),"downloaded/{}/tiers/normal".format(board))
-        cm.valueMove("boards/{}/requests".format(board),"downloaded/{}/tiers/special".format(board))
-        if os.path.isdir(board):
-            cm.ffm_makedirs("downloaded")
-            cm.ffm_tryMove(board,"downloaded")
-        cm.valueDelete("boards")
-    cm.valueSet("versioncreated",version)
-    cm.save()
-    print("Updated config from v2 to v3")
-
-#Main loop
-while True:
-    print('\n')
-    action = input("What do you want to do? (S/SQ/R/P/B/V/A/D/HELP/Q) ").upper().strip()
-    print('\n')
-
-    if action in ["QUIT","Q"]:
-        break
-
-    elif action in ["HELP","H"]:
-        print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made. 4plebs is also sourced.")
-        print("The file 'scraperconfig.json' stores the program's config in the program's directory.")
-        print("Scraped files are saved in nested directories in the same directory as the program.\n")
-
-        print("S  /      SCRAPE: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape.")
-        print("SQ /  SCRAPEQUIT: Scrapes then closes the program.")
-        print("R  /     REQUEST: Toggle the scraping of a specially requested thread. Requests override the blacklist.")
-        print("P  / PLEBREQUEST: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests.")
-        print("B  /   BLACKLIST: Toggle the blacklisting of a thread to not be scraped by supplying the OP number.")
-        print("V  /        VIEW: View the keywords that are currently being searched for.")
-        print("A  /         ADD: Add keywords to search for. This is per board and keywords are separated by commas.")
-        print("D  /      DELETE: Delete keywords to no longer search for. This is per board and keywords are separated by commas.")
-        print("H  /        HELP: Shows this help text.")
-        print("Q  /        QUIT: Exits the program.")
-
-    elif action in ["SCRAPE","S"]:
-        scrape()
+    if saovcs.olderThan(cm.valueGet("versioncreated"),"3.0.0"):
+        # update config from v2 to v3
+        for board in cm.valueGet("boards"):
+            cm.valueMove("boards/{}/keywords".format(board),"downloaded/{}/keywords_wl".format(board))
+            cm.valueMove("boards/{}/blacklist".format(board),"downloaded/{}/idnos_bl".format(board))
+            cm.valueMove("boards/{}/doneops".format(board),"downloaded/{}/idnos_done".format(board))
+            cm.valueMove("boards/{}/active".format(board),"downloaded/{}/tiers/normal".format(board))
+            cm.valueMove("boards/{}/requests".format(board),"downloaded/{}/tiers/special".format(board))
+            if os.path.isdir(board):
+                cm.ffm_makedirs("downloaded")
+                cm.ffm_tryMove(board,"downloaded")
+            cm.valueDelete("boards")
+        cm.valueSet("versioncreated",version)
         cm.save()
+        print("Updated config from v2 to v3")
 
-    elif action in ["SCRAPEQUIT","SQ"]:
-        scrape()
-        cm.save()
-        break
+    #Main loop
+    while True:
+        print('\n')
+        action = input("What do you want to do? (S/SQ/R/P/B/V/A/D/HELP/Q) ").upper().strip()
+        print('\n')
 
-    elif action in ["REQUEST","R"]:
-        viewRequests()
-        board = input("\nWhich board is the thread on? ").lower().strip()
-        if not board:
-            print("No board supplied")
-            continue
-        try:
-            opno = int(input("What is the OP number of the requested thread? ").strip())
-        except:
-            print("Error: Invalid number")
-            continue
-        if cm.tpt_getTaskTierByIdno("downloaded/{}".format(board),opno) == "special":
-            keyword = cm.tpt_demoteTaskByIdno("downloaded/{}".format(board),opno)[1]
-            print("Thread /{}/:{}:{} removed from special requests".format(board,str(opno),keyword))
-        else:
-            keyword = cm.tpt_sanitiseKeyword(input("What keyword(s) to tag request with? "))
-            if not keyword:
-                keyword = "request"
-            if cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="special")[0]:
-                print("Thread /{}/:{}:{} added to special requests".format(board,str(opno),keyword))
+        if action in ["QUIT","Q"]:
+            break
+
+        elif action in ["HELP","H"]:
+            print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made. 4plebs is also sourced.")
+            print("The file 'scraperconfig.json' stores the program's config in the program's directory.")
+            print("Scraped files are saved in nested directories in the same directory as the program.\n")
+
+            print("S  /      SCRAPE: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape.")
+            print("SQ /  SCRAPEQUIT: Scrapes then closes the program.")
+            print("R  /     REQUEST: Toggle the scraping of a specially requested thread. Requests override the blacklist.")
+            print("P  / PLEBREQUEST: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests.")
+            print("B  /   BLACKLIST: Toggle the blacklisting of a thread to not be scraped by supplying the OP number.")
+            print("V  /        VIEW: View the keywords that are currently being searched for.")
+            print("A  /         ADD: Add keywords to search for. This is per board and keywords are separated by commas.")
+            print("D  /      DELETE: Delete keywords to no longer search for. This is per board and keywords are separated by commas.")
+            print("H  /        HELP: Shows this help text.")
+            print("Q  /        QUIT: Exits the program.")
+
+        elif action in ["SCRAPE","S"]:
+            scrape()
+            cm.save()
+
+        elif action in ["SCRAPEQUIT","SQ"]:
+            scrape()
+            cm.save()
+            break
+
+        elif action in ["REQUEST","R"]:
+            viewRequests()
+            board = input("\nWhich board is the thread on? ").lower().strip()
+            if not board:
+                print("No board supplied")
+                continue
+            try:
+                opno = int(input("What is the OP number of the requested thread? ").strip())
+            except:
+                print("Error: Invalid number")
+                continue
+            if cm.tpt_getTaskTierByIdno("downloaded/{}".format(board),opno) == "special":
+                keyword = cm.tpt_demoteTaskByIdno("downloaded/{}".format(board),opno)[1]
+                print("Thread /{}/:{}:{} removed from special requests".format(board,str(opno),keyword))
             else:
-                print("Already scraped /{}/:{}:{}".format(board,str(opno),keyword))
-        cm.save()
-
-    elif action in ["PLEBREQUEST","P","PR"]:
-        viewRequests()
-        board = input("\nWhat board to search on? ").lower().strip()
-        if not board:
-            print("No board supplied")
-            continue
-        elif not board in plebBoards:
-            print("/{}/ is not a 4plebs board".format(board))
-            print("4plebs boards are: /{}/".format("/, /".join(plebBoards)))
-            continue
-        keyword = cm.tpt_sanitiseKeyword(input("What keyword to search 4plebs for? "))
-        if not keyword:
-            print("No keyword supplied")
-            continue
-        print("Searching 4plebs archive for threads on /{}/ containing \'{}\'".format(board,keyword))
-        opnos = []
-        boxno = 0
-        boxnos = len(boxestocheckfor["4plebs"])
-        for boxtocheckfor in boxestocheckfor["4plebs"]:
-            boxno += 1
-            searchjson_url = 'http://archive.4plebs.org/_/api/chan/search/?type=op&boards={}&{}={}'.format(board,boxtocheckfor,keyword.replace(" ","%20"))
-            cooldown_loop = True
-            while cooldown_loop:
-                try:
-                    searchjson_file = urllib.request.urlopen(urllib.request.Request(searchjson_url,None,{'User-Agent':plebsHTTPHeader}))
-                    searchjson = json.load(searchjson_file)
-                    if "error" in searchjson:
-                        if searchjson["error"] != "No results found.":
-                            print("Error loading 4plebs JSON")
-                    else:
-                        for post in searchjson["0"]["posts"]:
-                            opnos.append(int(post["num"]))
-                    cooldown_loop = False
-                except urllib.request.HTTPError as e:
-                    if e.code == 429:
-                        try:
-                            sleeptime = int(json.loads(e.readline().decode("utf-8"))["error"][35:37].strip())
-                        except:
-                            sleeptime = 15
-                        print("Trying again in {} seconds (HTTP error 429 cooldown {}/{})".format(str(sleeptime),str(boxno),str(boxnos)))
-                        sleep(sleeptime)
-                    else:
-                        print("Error loading 4plebs JSON")
-
-        opnos = list(set(opnos).difference(set([req[0] for req in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")])))
-        if opnos:
-            opnos_len = len(opnos)
-            print("Found {} more thread{}".format(opnos_len,"" if opnos_len==1 else "s"))
-            for opno in opnos:
+                keyword = cm.tpt_sanitiseKeyword(input("What keyword(s) to tag request with? "))
+                if not keyword:
+                    keyword = "request"
                 if cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="special")[0]:
                     print("Thread /{}/:{}:{} added to special requests".format(board,str(opno),keyword))
                 else:
                     print("Already scraped /{}/:{}:{}".format(board,str(opno),keyword))
-        else:
-            print("No more special requests added")
-        cm.save()
+            cm.save()
 
-    elif action in ["BLACKLIST","B","BLACK","BL"]:
-        viewBlacklisting()
-        board = input("\nWhich board is the thread on? ").lower().strip()
-        if not board:
-            print("No board supplied")
-            continue
-        try:
-            blacklistopno = int(input("What is the OP number of the thread to blacklist? ").strip())
-        except:
-            print("Error: Invalid number")
-            continue
-        if cm.tpt_idnos_blToggle("downloaded/{}".format(board),[blacklistopno])[0]:
-            print("No longer blacklisting /{}/:{}".format(board,str(blacklistopno)))
-        else:
-            print("Now blacklisting /{}/:{}".format(board,str(blacklistopno)))
-        cm.save()
+        elif action in ["PLEBREQUEST","P","PR"]:
+            viewRequests()
+            board = input("\nWhat board to search on? ").lower().strip()
+            if not board:
+                print("No board supplied")
+                continue
+            elif not board in plebBoards:
+                print("/{}/ is not a 4plebs board".format(board))
+                print("4plebs boards are: /{}/".format("/, /".join(plebBoards)))
+                continue
+            keyword = cm.tpt_sanitiseKeyword(input("What keyword to search 4plebs for? "))
+            if not keyword:
+                print("No keyword supplied")
+                continue
+            print("Searching 4plebs archive for threads on /{}/ containing \'{}\'".format(board,keyword))
+            opnos = []
+            boxno = 0
+            boxnos = len(boxestocheckfor["4plebs"])
+            for boxtocheckfor in boxestocheckfor["4plebs"]:
+                boxno += 1
+                searchjson_url = 'http://archive.4plebs.org/_/api/chan/search/?type=op&boards={}&{}={}'.format(board,boxtocheckfor,keyword.replace(" ","%20"))
+                cooldown_loop = True
+                while cooldown_loop:
+                    try:
+                        searchjson_file = urllib.request.urlopen(urllib.request.Request(searchjson_url,None,{'User-Agent':plebsHTTPHeader}))
+                        searchjson = json.load(searchjson_file)
+                        if "error" in searchjson:
+                            if searchjson["error"] != "No results found.":
+                                print("Error loading 4plebs JSON")
+                        else:
+                            for post in searchjson["0"]["posts"]:
+                                opnos.append(int(post["num"]))
+                        cooldown_loop = False
+                    except urllib.request.HTTPError as e:
+                        if e.code == 429:
+                            try:
+                                sleeptime = int(json.loads(e.readline().decode("utf-8"))["error"][35:37].strip())
+                            except:
+                                sleeptime = 15
+                            print("Trying again in {} seconds (HTTP error 429 cooldown {}/{})".format(str(sleeptime),str(boxno),str(boxnos)))
+                            sleep(sleeptime)
+                        else:
+                            print("Error loading 4plebs JSON")
 
-    elif action in ["VIEW","V"]:
-        viewRequests()
-        print()
-        viewKeywords()
-        print()
-        viewBlacklisting()
-
-    elif action in ["ADD","A"]:
-        viewKeywords()
-        board = input("\nWhich board to add keywords to? ").lower().strip()
-        if not board:
-            print("No board supplied")
-            continue
-        keywordstoadd = input("Which keywords to start scraping for? ").lower().split(',')
-        keywordstoadd = [keyword.replace("_"," ").strip() for keyword in keywordstoadd if keyword.replace("_"," ").strip()]
-        if not cm.tpt_keywords_wlAdd("downloaded/{}".format(board),keywordstoadd):
-            if not cm.tpt_getkeywords_wl("downloaded/{}".format(board)):
-                print("No keywords added for /{}/, not scraping it".format(board))
+            opnos = list(set(opnos).difference(set([req[0] for req in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")])))
+            if opnos:
+                opnos_len = len(opnos)
+                print("Found {} more thread{}".format(opnos_len,"" if opnos_len==1 else "s"))
+                for opno in opnos:
+                    if cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="special")[0]:
+                        print("Thread /{}/:{}:{} added to special requests".format(board,str(opno),keyword))
+                    else:
+                        print("Already scraped /{}/:{}:{}".format(board,str(opno),keyword))
             else:
-                print("No more keywords added for /{}/".format(board))
+                print("No more special requests added")
+            cm.save()
+
+        elif action in ["BLACKLIST","B","BLACK","BL"]:
+            viewBlacklisting()
+            board = input("\nWhich board is the thread on? ").lower().strip()
+            if not board:
+                print("No board supplied")
+                continue
+            try:
+                blacklistopno = int(input("What is the OP number of the thread to blacklist? ").strip())
+            except:
+                print("Error: Invalid number")
+                continue
+            if cm.tpt_idnos_blToggle("downloaded/{}".format(board),[blacklistopno])[0]:
+                print("No longer blacklisting /{}/:{}".format(board,str(blacklistopno)))
+            else:
+                print("Now blacklisting /{}/:{}".format(board,str(blacklistopno)))
+            cm.save()
+
+        elif action in ["VIEW","V"]:
+            viewRequests()
+            print()
+            viewKeywords()
+            print()
+            viewBlacklisting()
+
+        elif action in ["ADD","A"]:
+            viewKeywords()
+            board = input("\nWhich board to add keywords to? ").lower().strip()
+            if not board:
+                print("No board supplied")
+                continue
+            keywordstoadd = input("Which keywords to start scraping for? ").lower().split(',')
+            keywordstoadd = [keyword.replace("_"," ").strip() for keyword in keywordstoadd if keyword.replace("_"," ").strip()]
+            if not cm.tpt_keywords_wlAdd("downloaded/{}".format(board),keywordstoadd):
+                if not cm.tpt_getkeywords_wl("downloaded/{}".format(board)):
+                    print("No keywords added for /{}/, not scraping it".format(board))
+                else:
+                    print("No more keywords added for /{}/".format(board))
+            else:
+                print("Keywords for /{}/ updated to:".format(board),", ".join(cm.tpt_getkeywords_wl("downloaded/{}".format(board))))
+            cm.save()
+
+        elif action in ["DELETE","DEL","D"]:
+            if viewKeywords() is False:
+                continue
+            board = input("\nWhich board to delete keywords from? ").lower().strip()
+            if not board:
+                print("No board supplied")
+                continue
+            if not cm.valuePing("downloaded/{}".format(board)) or not cm.tpt_getkeywords_wl("downloaded/{}".format(board)):
+                print("Currently not scraping /{}/".format(board))
+                continue
+            keywordstodel = input("Which keywords to stop scraping for? ").lower().split(',')
+            keywordstodel = [keyword.replace("_"," ").strip() for keyword in keywordstodel if keyword.replace("_"," ").strip()]
+            if not cm.tpt_keywords_wlRemove("downloaded/{}".format(board),keywordstodel):
+                print("No keywords removed for /{}/".format(board))
+            elif not cm.tpt_getkeywords_wl("downloaded/{}".format(board)):
+                print("Stopped scraping /{}/".format(board))
+            else:
+                print("Keywords for /{}/ updated to:".format(board),", ".join(cm.tpt_getkeywords_wl("downloaded/{}".format(board))))
+            cm.save()
+
         else:
-            print("Keywords for /{}/ updated to:".format(board),", ".join(cm.tpt_getkeywords_wl("downloaded/{}".format(board))))
-        cm.save()
-
-    elif action in ["DELETE","DEL","D"]:
-        if viewKeywords() is False:
-            continue
-        board = input("\nWhich board to delete keywords from? ").lower().strip()
-        if not board:
-            print("No board supplied")
-            continue
-        if not cm.valuePing("downloaded/{}".format(board)) or not cm.tpt_getkeywords_wl("downloaded/{}".format(board)):
-            print("Currently not scraping /{}/".format(board))
-            continue
-        keywordstodel = input("Which keywords to stop scraping for? ").lower().split(',')
-        keywordstodel = [keyword.replace("_"," ").strip() for keyword in keywordstodel if keyword.replace("_"," ").strip()]
-        if not cm.tpt_keywords_wlRemove("downloaded/{}".format(board),keywordstodel):
-            print("No keywords removed for /{}/".format(board))
-        elif not cm.tpt_getkeywords_wl("downloaded/{}".format(board)):
-            print("Stopped scraping /{}/".format(board))
-        else:
-            print("Keywords for /{}/ updated to:".format(board),", ".join(cm.tpt_getkeywords_wl("downloaded/{}".format(board))))
-        cm.save()
-
-    else:
-        print("Unknown command")
-
-################################################################################
-
-
+            print("Unknown command")
