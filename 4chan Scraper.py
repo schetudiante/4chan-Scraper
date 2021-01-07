@@ -381,27 +381,27 @@ if __name__ == "__main__":
     parser.add_argument("--scrape", "-s",
         action = "store_true",
         help = "Scrape now")
+    parser.add_argument("--update", "-u",
+        action = "store_true",
+        help = "Update the lists of threads to scraped, but do not scrape them now")
     parser.add_argument("--plebs", "-p",
         action = "store_true",
         help = "Force using 4plebs as source of thread JSON and attachments")
-    parser.add_argument("--request", "-r",
-        action = "store",
-        help = "Toggle the scraping of a specially requested thread in the form 'boardcode:opno'. This overrides the blacklist")
-    parser.add_argument("--blacklist", "-b",
-        action = "store",
-        help = "Toggle the blacklisting of a thread to not be scraped in the form 'boardcode:opno'")
     parser.add_argument("--view", "-v",
         action = "store_true",
         help = "View the current requests, keywords, and blacklist")
+    parser.add_argument("--request", "-r",
+        action = "store",
+        help = "Toggle the scraping of a specially requested thread in the form 'boardcode:opno'. This overrides the blacklist")
     parser.add_argument("--add", "-a",
         action = "store",
         help = "Add keywords to scrape for in the form 'boardcode:word1,word2,...,wordn'")
     parser.add_argument("--delete", "-d",
         action = "store",
         help = "Delete keywords to no longer search for in the form 'boardcode:word1,word2,...,wordn'")
-    parser.add_argument("--update", "-u",
-        action = "store_true",
-        help = "Update the lists of threads to scraped, but do not scrape them now")
+    parser.add_argument("--blacklist", "-b",
+        action = "store",
+        help = "Toggle the blacklisting of a thread to not be scraped in the form 'boardcode:opno'")
     args = parser.parse_args()
 
     if not any(args.__dict__.values()):
@@ -410,10 +410,8 @@ if __name__ == "__main__":
         raise SystemExit
 
     cm = saoconfigmanager.configmanager(filename = "scraperconfig.json", default = {"versioncreated":version, "downloaded":{}})
-    cm.disableAutosave()
     cm.tpt_manageDirectories = True
-    cm.tpt_manageDirectoriesDeleteEmptyOnUpdate = True # maybe pull this ugly stuff out into either a synced
-                                                    # part of configmanager or just code on its own here
+    cm.tpt_manageDirectoriesDeleteEmptyOnUpdate = True
 
     #Main loop
     while True:

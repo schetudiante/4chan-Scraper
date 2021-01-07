@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.1.0
+- Better CLI support
+- Breaks compatibility with v3.0.5
+- Add `-u` flag to update known threads but not scrape
+- Add `-p` flag to force using 4plebs for thread JSONs and attachments source
+
 ## v3.0.5
 - Remove saosuite submodule since it is taking a different direction (private repo for my resources)
 - Leave appropriate scripts behind for function
