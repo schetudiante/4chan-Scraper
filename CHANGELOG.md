@@ -1,8 +1,8 @@
 # Changelog
 
-## v3.1.0
-- Better CLI support
-- Breaks compatibility with v3.0.5
+## v4.0.0
+- Move to CLI support (`argparse`) instead of own mainloop
+- Add `-l` flag for optional SAO logo
 - Add `-u` flag to update known threads but not scrape
 - Add `-p` flag to force using 4plebs for thread JSONs and attachments source
 

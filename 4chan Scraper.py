@@ -18,7 +18,7 @@ from saosuite import saomd5
 
 lock = threading.Lock()
 pm = saostatusmsgs.progressmsg()
-version = '3.1.0'
+version = '4.0.0' # beta/dev
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebBoards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
@@ -87,7 +87,7 @@ def scrape(forcePlebs):
         if forcePlebs:
             for board in nonemptyBoards_special:
                 if not board in plebBoards:
-                    print("Skipping board /{}/ because of -p flag".format(board))
+                    print("Skipping board /{}/ because of --plebs flag".format(board))
                     nonemptyBoards_special.remove(board)
         ljustLength = 14
         for board in nonemptyBoards_special:
@@ -110,7 +110,7 @@ def scrape(forcePlebs):
         print("~Doing normal scraping~")
         for board in nonemptyBoards_keywords:
             if forcePlebs and not board in plebBoards:
-                print("~Skipping board /{}/ because of -p flag~".format(board))
+                print("~Skipping board /{}/ because of --plebs flag~".format(board))
                 continue
             print("~Scraping threads from /{}/~".format(board))
             tasksToScrape = cm.tpt_getTasksInTier("downloaded/{}".format(board),"normal")[:]
@@ -403,6 +403,9 @@ if __name__ == "__main__":
         4plebs is also sourced.
         The file 'scraperconfig.json' stores the program's config in the program's directory.
         Scraped files are saved in nested directories in the same directory as the program.""")
+    parser.add_argument("--logo", "-l",
+        action = "store_true",
+        help = "Print SAO logo when run")
     parser.add_argument("--update", "-u",
         action = "store_true",
         help = "Update the lists of threads to scraped, but do not scrape them now. Also prunes threads of no further interest, ie those of keywords no longer being scraped for.")
@@ -411,7 +414,7 @@ if __name__ == "__main__":
         help = "Calls --update and then scrapes")
     parser.add_argument("--plebs", "-p",
         action = "store_true",
-        help = "Force using 4plebs as source of thread JSON and attachments")
+        help = "Only use 4plebs as source of thread JSON and attachments. Does not affect --update")
     parser.add_argument("--view", "-v",
         action = "store_true",
         help = "View the current requests, keywords, and blacklist")
@@ -438,6 +441,8 @@ if __name__ == "__main__":
     cm.tpt_manageDirectories = True
     cm.tpt_manageDirectoriesDeleteEmptyOnUpdate = True
 
+    if args.logo:
+        saotitle.printLogoTitle(title = "Bateman\'s 4chan Scraper", subtitle = "Version {}".format(version))
     if args.view:
         viewRequests()
         print()
@@ -528,64 +533,3 @@ if __name__ == "__main__":
         updateThreads()
         scrape(args.plebs)
         cm.save()
-
-    # print("P  / PLEBREQUEST: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests.") TODO
-
-    def pleb():
-        pass
-        # elif action in ["PLEBREQUEST","P","PR"]:
-        #     viewRequests()
-        #     board = input("\nWhat board to search on? ").lower().strip()
-        #     if not board:
-        #         print("No board supplied")
-        #         continue
-        #     elif not board in plebBoards:
-        #         print("/{}/ is not a 4plebs board".format(board))
-        #         print("4plebs boards are: /{}/".format("/, /".join(plebBoards)))
-        #         continue
-        #     keyword = cm.tpt_sanitiseKeyword(input("What keyword to search 4plebs for? "))
-        #     if not keyword:
-        #         print("No keyword supplied")
-        #         continue
-        #     print("Searching 4plebs archive for threads on /{}/ containing \'{}\'".format(board,keyword))
-        #     opnos = []
-        #     boxno = 0
-        #     boxnos = len(boxestocheckfor["4plebs"])
-        #     for boxtocheckfor in boxestocheckfor["4plebs"]:
-        #         boxno += 1
-        #         searchjson_url = 'http://archive.4plebs.org/_/api/chan/search/?type=op&boards={}&{}={}'.format(board,boxtocheckfor,keyword.replace(" ","%20"))
-        #         cooldown_loop = True
-        #         while cooldown_loop:
-        #             try:
-        #                 searchjson_file = urllib.request.urlopen(urllib.request.Request(searchjson_url,None,{'User-Agent':plebsHTTPHeader}))
-        #                 searchjson = json.load(searchjson_file)
-        #                 if "error" in searchjson:
-        #                     if searchjson["error"] != "No results found.":
-        #                         print("Error loading 4plebs JSON")
-        #                 else:
-        #                     for post in searchjson["0"]["posts"]:
-        #                         opnos.append(int(post["num"]))
-        #                 cooldown_loop = False
-        #             except urllib.request.HTTPError as e:
-        #                 if e.code == 429:
-        #                     try:
-        #                         sleeptime = int(json.loads(e.readline().decode("utf-8"))["error"][35:37].strip())
-        #                     except:
-        #                         sleeptime = 15
-        #                     print("Trying again in {} seconds (HTTP error 429 cooldown {}/{})".format(str(sleeptime),str(boxno),str(boxnos)))
-        #                     sleep(sleeptime)
-        #                 else:
-        #                     print("Error loading 4plebs JSON")
-
-        #     opnos = list(set(opnos).difference(set([req[0] for req in cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")])))
-        #     if opnos:
-        #         opnos_len = len(opnos)
-        #         print("Found {} more thread{}".format(opnos_len,"" if opnos_len==1 else "s"))
-        #         for opno in opnos:
-        #             if cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="special")[0]:
-        #                 print("Thread /{}/:{}:{} added to special requests".format(board,str(opno),keyword))
-        #             else:
-        #                 print("Already scraped /{}/:{}:{}".format(board,str(opno),keyword))
-        #     else:
-        #         print("No more special requests added")
-        #     cm.save()
