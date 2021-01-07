@@ -28,8 +28,8 @@ numberOfDownloadThreads = 4
 
 def updateThreads():
     """Update normal (keyword) threads to scrape"""
-    print("Updating known threads of interest")
-    noPrune = []
+    print("~Updating known threads of interest~")
+    boardsNotToPrune = []
     boards = cm.valueGet("downloaded")
     nonemptyBoards_keywords = [board for board in boards if cm.tpt_getkeywords_wl("downloaded/{}".format(board))]
     for board in nonemptyBoards_keywords:
@@ -64,23 +64,31 @@ def updateThreads():
                             break
             cm.tpt_idnos_blRemove("downloaded/{}".format(board),blacklist_expired)
         except:
-            noPrune.append(board)
+            boardsNotToPrune.append(board)
             print("Error: Cannot load catalog for /{}/".format(board))
+
     for board in boards:
-        if not board in noPrune:
+        if not board in boardsNotToPrune:
             for task in cm.tpt_pruneTasks("downloaded/{}".format(board),tiers=["normal"],keywords_wl=True,idnos_bl=True,idnos_done=True)["normal"]:
                 cm.ffm_rmIfEmptyTree("downloaded/{}/{} {}".format(board,str(task[0]),task[1]))
-    print("Updated{}".format(" with some errors" if noPrune else ""))
+    print("~Updated{}~".format(" with some errors" if boardsNotToPrune else ""))
 
 ################################################################################
 
-def scrape():
+def scrape(forcePlebs):
+    boards = cm.valueGet("downloaded")
+
     # do special requests
-    nonemptyBoards_special = [board for board in cm.valueGet("downloaded") if cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]
+    nonemptyBoards_special = [board for board in boards if cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]
     if not nonemptyBoards_special:
-        print("Currently no special requests")
+        print("~Currently no special requests~")
     else:
         print("~Doing special requests~")
+        if forcePlebs:
+            for board in nonemptyBoards_special:
+                if not board in plebBoards:
+                    print("Skipping board /{}/ because of -p flag".format(board))
+                    nonemptyBoards_special.remove(board)
         ljustLength = 14
         for board in nonemptyBoards_special:
             tasks_special = cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")
@@ -88,38 +96,44 @@ def scrape():
         for board in nonemptyBoards_special:
             tasks_special = cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")
             for task in [t for t in tasks_special]:
-                result = scrapeThread(board,*task,ljustLength)
+                result = scrapeThread(board,*task,ljustLength,forcePlebs)
                 if result[0] == 'keep':
                     cm.tpt_updateTaskByIdno("downloaded/{}".format(board),task[0],result[1])
                 else:
                     cm.tpt_finishTaskByIdno("downloaded/{}".format(board),task[0])
-    print()
 
     # do normal scraping
-    if not (nonemptyBoards_keywords := [board for board in cm.valueGet("downloaded") if cm.tpt_getkeywords_wl("downloaded/{}".format(board))]):
-        print("Currently not scraping any boards\n")
+    nonemptyBoards_keywords = [board for board in boards if cm.tpt_getkeywords_wl("downloaded/{}".format(board))]
+    if not nonemptyBoards_keywords:
+        print("~Currently not scraping any keywords~")
     else:
+        print("~Doing normal scraping~")
         for board in nonemptyBoards_keywords:
+            if forcePlebs and not board in plebBoards:
+                print("~Skipping board /{}/ because of -p flag~".format(board))
+                continue
+            print("~Scraping threads from /{}/~".format(board))
             tasksToScrape = cm.tpt_getTasksInTier("downloaded/{}".format(board),"normal")[:]
             ljustLength = max([14+len(board)+len(str(task[0]))+len(task[1]) for task in tasksToScrape]) if tasksToScrape else 14
             for task in tasksToScrape:
-                if (result := scrapeThread(board,*task,ljustLength))[0] == 'keep':
+                if (result := scrapeThread(board,*task,ljustLength,forcePlebs))[0] == 'keep':
                     cm.tpt_updateTaskByIdno("downloaded/{}".format(board),task[0],result[1])
                 else:
                     cm.tpt_finishTaskByIdno("downloaded/{}".format(board),task[0])
 
-    for board in cm.valueGet("downloaded"):
+    for board in boards:
         cm.ffm_rmIfEmptyTree("downloaded/{}".format(board))
 
     print("~Done scraping~")
 
 ################################################################################
 
-def scrapeThread(boardcode,threadopno,keyword,scrapednos,padding):
+def scrapeThread(boardcode,threadopno,keyword,scrapednos,padding,forcePlebs):
     global lock
-    filelist = getFileList(boardcode,threadopno,keyword,'4chan')
-    filestart = 0
-    if filelist[0] in ['try_4plebs']:
+    if not forcePlebs:
+        filelist = getFileList(boardcode,threadopno,keyword,'4chan')
+        filestart = 0
+    if forcePlebs or filelist[0] in ['try_4plebs']:
         filelist = getFileList(boardcode,threadopno,keyword,'4plebs')
         filestart = 1
     if filelist[0] in ['keep','delete']:
@@ -389,12 +403,12 @@ if __name__ == "__main__":
         4plebs is also sourced.
         The file 'scraperconfig.json' stores the program's config in the program's directory.
         Scraped files are saved in nested directories in the same directory as the program.""")
-    parser.add_argument("--scrape", "-s",
-        action = "store_true",
-        help = "Scrape now")
     parser.add_argument("--update", "-u",
         action = "store_true",
-        help = "Update the lists of threads to scraped, but do not scrape them now")
+        help = "Update the lists of threads to scraped, but do not scrape them now. Also prunes threads of no further interest, ie those of keywords no longer being scraped for.")
+    parser.add_argument("--scrape", "-s",
+        action = "store_true",
+        help = "Calls --update and then scrapes")
     parser.add_argument("--plebs", "-p",
         action = "store_true",
         help = "Force using 4plebs as source of thread JSON and attachments")
@@ -512,7 +526,7 @@ if __name__ == "__main__":
         cm.save()
     elif args.scrape:
         updateThreads()
-        scrape()
+        scrape(args.plebs)
         cm.save()
 
     # print("P  / PLEBREQUEST: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests.") TODO
