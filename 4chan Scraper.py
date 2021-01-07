@@ -12,9 +12,12 @@ import argparse             #   for improved CLI
 from saosuite import saotitle
 from saosuite import saostatusmsgs
 from saosuite import saoconfigmanager
-from saosuite import saovcs
 from saosuite import saomd5
 
+# Globals
+
+lock = threading.Lock()
+pm = saostatusmsgs.progressmsg()
 version = '3.1.0'
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebBoards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
@@ -368,31 +371,49 @@ def viewBlacklisting():
 ################################################################################
 
 if __name__ == "__main__":
-    lock = threading.Lock()
-    pm = saostatusmsgs.progressmsg()
+    parser = argparse.ArgumentParser(description =
+        """Download attachments from 4chan or 4plebs.
+        Save attachments from threads whose OPs contain a keyword of interest that is being searched for.
+        Special requests can be made.
+        4plebs is also sourced.
+        The file 'scraperconfig.json' stores the program's config in the program's directory.
+        Scraped files are saved in nested directories in the same directory as the program.""")
+    parser.add_argument("--scrape", "-s",
+        action = "store_true",
+        help = "Scrape now")
+    parser.add_argument("--plebs", "-p",
+        action = "store_true",
+        help = "Force using 4plebs as source of thread JSON and attachments")
+    parser.add_argument("--request", "-r",
+        action = "store",
+        help = "Toggle the scraping of a specially requested thread in the form 'boardcode:opno'. This overrides the blacklist")
+    parser.add_argument("--blacklist", "-b",
+        action = "store",
+        help = "Toggle the blacklisting of a thread to not be scraped in the form 'boardcode:opno'")
+    parser.add_argument("--view", "-v",
+        action = "store_true",
+        help = "View the current requests, keywords, and blacklist")
+    parser.add_argument("--add", "-a",
+        action = "store",
+        help = "Add keywords to scrape for in the form 'boardcode:word1,word2,...,wordn'")
+    parser.add_argument("--delete", "-d",
+        action = "store",
+        help = "Delete keywords to no longer search for in the form 'boardcode:word1,word2,...,wordn'")
+    parser.add_argument("--update", "-u",
+        action = "store_true",
+        help = "Update the lists of threads to scraped, but do not scrape them now")
+    args = parser.parse_args()
 
-    saotitle.printLogoTitle(title = "Bateman\'s 4chan Scraper", subtitle = "Version {}".format(version), newline = False)
+    if not any(args.__dict__.values()):
+        saotitle.printLogoTitle(title = "Bateman\'s 4chan Scraper", subtitle = "Version {}".format(version), newline = False)
+        parser.print_help()
+        raise SystemExit
+
     cm = saoconfigmanager.configmanager(filename = "scraperconfig.json", default = {"versioncreated":version, "downloaded":{}})
     cm.disableAutosave()
     cm.tpt_manageDirectories = True
     cm.tpt_manageDirectoriesDeleteEmptyOnUpdate = True # maybe pull this ugly stuff out into either a synced
                                                     # part of configmanager or just code on its own here
-
-    if saovcs.olderThan(cm.valueGet("versioncreated"),"3.0.0"):
-        # update config from v2 to v3
-        for board in cm.valueGet("boards"):
-            cm.valueMove("boards/{}/keywords".format(board),"downloaded/{}/keywords_wl".format(board))
-            cm.valueMove("boards/{}/blacklist".format(board),"downloaded/{}/idnos_bl".format(board))
-            cm.valueMove("boards/{}/doneops".format(board),"downloaded/{}/idnos_done".format(board))
-            cm.valueMove("boards/{}/active".format(board),"downloaded/{}/tiers/normal".format(board))
-            cm.valueMove("boards/{}/requests".format(board),"downloaded/{}/tiers/special".format(board))
-            if os.path.isdir(board):
-                cm.ffm_makedirs("downloaded")
-                cm.ffm_tryMove(board,"downloaded")
-            cm.valueDelete("boards")
-        cm.valueSet("versioncreated",version)
-        cm.save()
-        print("Updated config from v2 to v3")
 
     #Main loop
     while True:
@@ -403,21 +424,7 @@ if __name__ == "__main__":
         if action in ["QUIT","Q"]:
             break
 
-        elif action in ["HELP","H"]:
-            print("This is Bateman's 4chan scraper. It saves attachments from threads whose OPs contain a keyword of interest that is being searched for. Special requests can be made. 4plebs is also sourced.")
-            print("The file 'scraperconfig.json' stores the program's config in the program's directory.")
-            print("Scraped files are saved in nested directories in the same directory as the program.\n")
-
-            print("S  /      SCRAPE: Saves files from threads whose OP contains a keyword of interest. Thread OPs from scraped threads are saved until they appear in the archive for one final thread scrape.")
-            print("SQ /  SCRAPEQUIT: Scrapes then closes the program.")
-            print("R  /     REQUEST: Toggle the scraping of a specially requested thread. Requests override the blacklist.")
-            print("P  / PLEBREQUEST: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests.")
-            print("B  /   BLACKLIST: Toggle the blacklisting of a thread to not be scraped by supplying the OP number.")
-            print("V  /        VIEW: View the keywords that are currently being searched for.")
-            print("A  /         ADD: Add keywords to search for. This is per board and keywords are separated by commas.")
-            print("D  /      DELETE: Delete keywords to no longer search for. This is per board and keywords are separated by commas.")
-            print("H  /        HELP: Shows this help text.")
-            print("Q  /        QUIT: Exits the program.")
+        # print("P  / PLEBREQUEST: Searches 4plebs archives for all threads with a chosen keyword in their OP on a board and adds them to special requests.")
 
         elif action in ["SCRAPE","S"]:
             scrape()
