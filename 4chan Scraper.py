@@ -414,10 +414,13 @@ if __name__ == "__main__":
         help = "Calls --update and then scrapes")
     parser.add_argument("--plebs", "-p",
         action = "store_true",
-        help = "Only use 4plebs as source of thread JSON and attachments. Does not affect --update")
+        help = "Only use 4plebs as source of thread JSON and attachments. Affects flags --oneoff and --scrape")
     parser.add_argument("--view", "-v",
         action = "store_true",
         help = "View the current requests, keywords, and blacklist")
+    parser.add_argument("--oneoff", "-o",
+        action = "store",
+        help = "Perform a oneoff scrape of a specified thread of the form 'boardcode:opno:tag'. This ignores the config, whether the thread has been scraped before or not, or is blacklisted etc. 'tag' is optional, by default it is 'oneoff'")
     parser.add_argument("--request", "-r",
         action = "store",
         help = "Toggle the scraping of a specially requested thread in the form 'boardcode:opno:tag'. This overrides the blacklist. 'tag' is optional, by default it is 'request'")
@@ -526,6 +529,19 @@ if __name__ == "__main__":
             print("Now blacklisting /{}/:{}".format(board,str(opno)))
         cm.save()
 
+    if args.oneoff:
+        try:
+            arg_split = args.oneoff.split(':', 2)
+            board = arg_split.pop(0)
+            opno = int(arg_split.pop(0))
+        except:
+            print("Error parsing --oneoff argument. Format must be 'boardcode:opno:tag' where 'tag' is optional")
+            raise SystemExit
+        try:
+            keyword = arg_split.pop(0)
+        except IndexError:
+            keyword = "oneoff"
+        scrapeThread(board, opno, keyword, [], 14, args.plebs)
     if args.update:
         updateThreads()
         cm.save()

@@ -15,6 +15,7 @@ usage: 4chan Scraper.py
 [--scrape]
 [--plebs]
 [--view]
+[--oneoff ONEOFF]
 [--request REQUEST]
 [--add ADD]
 [--delete DELETE]
@@ -29,7 +30,8 @@ Running `python '4chan Scraper.py' -h` will display the help page that details t
 - Progress bar to show scraping progress
 - Add and remove boards with their own set of keywords to scrape for
 - Make special requests to scrape custom threads
-- Request to scrape all archived threads of interest from 4plebs
+- Make oneoff requests to just scrape a thread once independent of other activity
+<!-- - Request to scrape all archived threads of interest from 4plebs -->
 - Blacklist threads to not scrape
 - View what keywords are being scraped for, special requests are being made, and blacklisted threads
 - Option to auto-quit once the current scraping session has finished
