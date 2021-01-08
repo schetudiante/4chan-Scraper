@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.0.0
+- Move to CLI support (`argparse`) instead of own mainloop
+- Add `-l` flag for optional SAO logo
+- Add `-u` flag to update known threads but not scrape
+- Add `-p` flag to force using 4plebs for thread JSONs and attachments source
+- Add `-o` flag for oneoff config-independent thread scraping
+
 ## v3.0.5
 - Remove saosuite submodule since it is taking a different direction (private repo for my resources)
 - Leave appropriate scripts behind for function
