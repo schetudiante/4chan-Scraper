@@ -18,11 +18,42 @@ from saosuite import saomd5
 
 lock = threading.Lock()
 pm = saostatusmsgs.progressmsg()
-version = '4.0.0' # beta/dev
+version = '4.1.0'
 boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
 plebBoards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
 numberOfDownloadThreads = 4
+GLOBAL_ImageDomains = {
+    "4chan": "https://i.4cdn.org/",
+    "4plebs": "https://i.4pcdn.org/",
+    "4plebsthumbs": "https://i.4pcdn.org/"
+}
+ScrapeFile_Errors = {
+    "4chan": {"MD5_same": "File /{}/:{}:{}:{} already exists with same MD5 checksum; not scraping again ",
+              "MD5_diff": "File /{}/:{}:{}:{} already exists with different MD5 checksum; possible duplicate scraped ",
+              "404": "File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file ",
+              "404_no_4plebs": "File /{}/:{}:{}:{} not found on 4chan and not on 4plebs ",
+              "error_loading": "Error: Cannot load 4chan file /{}/:{}:{}:{} "},
+    "4plebs": {"MD5_same": "File /{}/:{}:{}:{} already exists with same MD5 checksum; not scraping again ",
+               "MD5_diff": "File /{}/:{}:{}:{} already exists with different MD5 checksum; possible duplicate scraped ",
+               "404": "File /{}/:{}:{}:{} not found on 4plebs, scraping 4plebs thumbnail ",
+               "error_loading": "Error: Cannot load 4plebs file /{}/:{}:{}:{} "},
+    "4plebsthumbs": {"MD5_same": "File /{}/:{}:{}:{}(thumb) already exists with same MD5 checksum; not scraping again ",
+                     "MD5_diff": "File /{}/:{}:{}:{}(thumb) already exists with different MD5 checksum; possible duplicate scraped ",
+                     "404": "File /{}/:{}:{}:{}(thumb) not found on 4plebs ",
+                     "error_loading": "Error: Cannot load 4plebs file /{}/:{}:{}:{}(thumb) "}
+}
+
+################################################################################
+
+def ThreadLocked(lock_object):
+    """Decorator for methods to use 'with lock_object'"""
+    def helper(function):
+        def inner(*args,**kwargs):
+            with lock_object:
+                return function(*args,**kwargs)
+        return inner
+    return helper
 
 ################################################################################
 
@@ -129,7 +160,6 @@ def scrape(forcePlebs):
 ################################################################################
 
 def scrapeThread(boardcode,threadopno,keyword,scrapednos,padding,forcePlebs):
-    global lock
     if not forcePlebs:
         filelist = getFileList(boardcode,threadopno,keyword,'4chan')
         filestart = 0
@@ -149,7 +179,7 @@ def scrapeThread(boardcode,threadopno,keyword,scrapednos,padding,forcePlebs):
     keepflag = 0
 
     postbuffers = [[] for i in range(numberOfDownloadThreads)]
-    def scrapeFile_download_thread(dtid):
+    def ScrapeFile_download_thread(dtid):
         nonlocal keepflag, postbuffers
         while True:
             with lock:
@@ -161,7 +191,7 @@ def scrapeThread(boardcode,threadopno,keyword,scrapednos,padding,forcePlebs):
                 except IndexError:
                     return
             for modus in ['4chan','4plebs','4plebsthumbs'][filestart:]:
-                result = scrapeFile(threadaddress,postbuffers[dtid],modus,boardcode,threadopno,keyword)
+                result = ScrapeFile(threadaddress,postbuffers[dtid],modus,boardcode,threadopno,keyword)
                 with lock:
                     if result == 'success':
                         scrapednos.append(postbuffers[dtid]["no"])
@@ -173,7 +203,7 @@ def scrapeThread(boardcode,threadopno,keyword,scrapednos,padding,forcePlebs):
                     elif result == 'try_next_modus':
                         continue
 
-    download_threads = [threading.Thread(target=scrapeFile_download_thread,args=[i]) for i in range(numberOfDownloadThreads)]
+    download_threads = [threading.Thread(target = ScrapeFile_download_thread, args=[i]) for i in range(numberOfDownloadThreads)]
     for t in download_threads:
         t.start()
     for t in download_threads:
@@ -247,99 +277,50 @@ def getFileList(boardcode,threadopno,keyword,modus):
 
 ################################################################################
 
-def scrapeFile(threadaddress,post,modus,boardcode,threadopno,keyword):
-    def sf_error(num):
-        global lock
-        sf_errors = [
-            "File /{}/:{}:{}:{} already exists with different MD5 checksum; possible duplicate scraped ",
-            "File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file ",
-            "File /{}/:{}:{}:{} not found on 4chan and not on 4plebs ",
-            "Error: Cannot load 4chan file /{}/:{}:{}:{} ",
-            "File /{}/:{}:{}:{} already exists with different MD5 checksum; possible duplicate scraped ",
-            "File /{}/:{}:{}:{} not found on 4plebs, scraping 4plebs thumbnail ",
-            "Error: Cannot load 4plebs file /{}/:{}:{}:{} ",
-            "File /{}/:{}:{}:{}(thumb) already exists with different MD5 checksum; possible duplicate scraped ",
-            "File /{}/:{}:{}:{}(thumb) not found on 4plebs ",
-            "Error: Cannot load 4plebs file /{}/:{}:{}:{}(thumb) ",
-            "File /{}/:{}:{}:{} already exists with same MD5 checksum; not scraping again ",
-            "File /{}/:{}:{}:{} already exists with same MD5 checksum; not scraping again ",
-            "File /{}/:{}:{}:{}(thumb) already exists with same MD5 checksum; not scraping again "]
-        with lock:
-            pm.progressmsg(msg=sf_errors[num].format(boardcode,threadopno,keyword,str(post["no"])))
+def ScrapeFile(threadaddress, post, modus, boardcode, threadopno, keyword):
+    @ThreadLocked(lock)
+    def sf_error(code):
+        pm.progressmsg(msg = ScrapeFile_Errors[modus][code].format(boardcode, threadopno, keyword, str(post["no"])))
 
-    if modus == '4chan':
-        try:
-            imgaddress = "{}/{}{}".format(threadaddress,str(post["no"]),post["ext"])
-            if os.path.exists(imgaddress):
-                if saomd5.isHashHex(imgaddress,saomd5.base64ToHex(post["md564"])):
-                    sf_error(10)
-                    return 'success'
-                else:
-                    sf_error(0)
-                    rn_name,rn_ext = os.path.splitext(imgaddress)
-                    os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_",str(int(time())),rn_ext))
-            imgdomain = 'https://i.4cdn.org/'
-            imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
-            urllib.request.urlretrieve(imgurl,imgaddress)
-            return 'success'
-        except Exception as e:
-            if hasattr(e,'code') and e.code == 404: # pylint: disable=E1101
+    try:
+        if modus == "4plebsthumbs":
+            threadaddress = "{}/thumbs".format(threadaddress)
+            imgaddress = "{}/{}.jpg".format(threadaddress, str(post["no"]))
+        else:
+            imgaddress = "{}/{}{}".format(threadaddress, str(post["no"]), post["ext"])
+        if os.path.exists(imgaddress):
+            if saomd5.isHashHex(imgaddress, saomd5.base64ToHex(post["md564"])):
+                sf_error("MD5_same")
+                return "success"
+            else:
+                sf_error("MD5_diff")
+                rn_name, rn_ext = os.path.splitext(imgaddress)
+                os.rename(imgaddress, "{}{}{}{}".format(rn_name, "_", str(int(time())), rn_ext))
+        imgdomain = GLOBAL_ImageDomains[modus]
+        if modus == "4plebsthumbs":
+            imgurl = "{}{}/{}s.jpg".format(imgdomain, boardcode, str(post["tim"]))
+        else:
+            imgurl = "{}{}/{}{}".format(imgdomain, boardcode, str(post["tim"]), post["ext"])
+        urllib.request.urlretrieve(imgurl, imgaddress)
+        return "success"
+    except Exception as e:
+        if hasattr(e, "code") and e.code in [404, "404"]: # pylint: disable=E1101
+            if modus == "4chan":
                 if boardcode in plebBoards:
-                    sf_error(1)
-                    return 'try_next_modus'
+                    sf_error("404")
+                    return "try_next_modus"
                 else:
-                    sf_error(2)
-                    return 'success'
-            else:
-                sf_error(3)
-                return 'keep'
-
-    elif modus == '4plebs':
-        try:
-            imgaddress = "{}/{}{}".format(threadaddress,str(post["no"]),post["ext"])
-            if os.path.exists(imgaddress):
-                if saomd5.isHashHex(imgaddress,saomd5.base64ToHex(post["md564"])):
-                    sf_error(11)
-                    return 'success'
-                else:
-                    sf_error(4)
-                    rn_name,rn_ext = os.path.splitext(imgaddress)
-                    os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_",str(int(time())),rn_ext))
-            imgdomain = 'https://i.4pcdn.org/'
-            imgurl = "{}{}/{}{}".format(imgdomain,boardcode,str(post["tim"]),post["ext"])
-            urllib.request.urlretrieve(imgurl,imgaddress)
-            return 'success'
-        except Exception as e:
-            if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
-                sf_error(5)
-                return 'try_next_modus'
-            else:
-                sf_error(6)
-                return 'keep'
-
-    elif modus == '4plebsthumbs':
-        try:
-            threadaddress = '{}/thumbs'.format(threadaddress)
-            imgaddress = "{}/{}.jpg".format(threadaddress,str(post["no"]))
-            if os.path.exists(imgaddress):
-                if saomd5.isHashHex(imgaddress,saomd5.base64ToHex(post["md564"])):
-                    sf_error(12)
-                    return 'success'
-                else:
-                    sf_error(7)
-                    rn_name,rn_ext = os.path.splitext(imgaddress)
-                    os.rename(imgaddress,"{}{}{}{}".format(rn_name,"_",str(int(time())),rn_ext))
-            imgdomain = 'https://i.4pcdn.org/'
-            imgurl = "{}{}/{}s.jpg".format(imgdomain,boardcode,str(post["tim"]))
-            urllib.request.urlretrieve(imgurl,imgaddress)
-            return 'success'
-        except Exception as e:
-            if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
-                sf_error(8)
-                return 'success'
-            else:
-                sf_error(9)
-                return 'keep'
+                    sf_error("404_no_4plebs")
+                    return "success"
+            elif modus == "4plebs":
+                sf_error("404")
+                return "try_next_modus"
+            elif modus == "4plebsthumbs":
+                sf_error("404")
+                return "success"
+        else:
+            sf_error("error_loading")
+            return "keep"
 
 ################################################################################
 
