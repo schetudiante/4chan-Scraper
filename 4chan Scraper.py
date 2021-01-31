@@ -23,26 +23,66 @@ boxestocheckfor = {"4chan":["name","sub","com","filename"],"4plebs":["username",
 plebBoards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
 plebsHTTPHeader = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
 numberOfDownloadThreads = 4
-GLOBAL_ImageDomains = {
-    "4chan": "https://i.4cdn.org/",
-    "4plebs": "https://i.4pcdn.org/",
-    "4plebsthumbs": "https://i.4pcdn.org/"
+ConstantStrings = {
+    "4chan": {
+        "URL": {
+            "catalogJSON": "https://a.4cdn.org/{}/catalog.json",
+            "threadJSON": "https://a.4cdn.org/{}/thread/{}.json",
+            "image": "https://i.4cdn.org/"
+        },
+        "GetMediaPostsList_Errors": {
+            "404": "Thread /{}/:{}:{} not found on 4chan, trying 4plebs",
+            "404_no_4plebs": "Thread /{}/:{}:{} not found on 4chan and not on 4plebs",
+            "error_loading": "Error: Cannot load 4chan thread /{}/:{}:{}"
+        },
+        "DownloadMediaPost_Errors": {
+            "MD5_same": "File /{}/:{}:{}:{} already exists with same MD5 checksum; not scraping again ",
+            "MD5_diff": "File /{}/:{}:{}:{} already exists with different MD5 checksum; possible duplicate scraped ",
+            "404": "File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file ",
+            "404_no_4plebs": "File /{}/:{}:{}:{} not found on 4chan and not on 4plebs ",
+            "error_loading": "Error: Cannot load 4chan file /{}/:{}:{}:{} "
+        }
+    },
+    "4plebs": {
+        "URL": {
+            "threadJSON": "http://archive.4plebs.org/_/api/chan/thread/?board={}&num={}",
+            "image": "https://i.4pcdn.org/"
+        },
+        "GetMediaPostsList_Errors": {
+            "404": "Thread /{}/:{}:{} not found on 4plebs",
+            "error_loading": "Error: Cannot load 4plebs thread /{}/:{}:{}"
+        },
+        "DownloadMediaPost_Errors": {
+            "MD5_same": "File /{}/:{}:{}:{} already exists with same MD5 checksum; not scraping again ",
+            "MD5_diff": "File /{}/:{}:{}:{} already exists with different MD5 checksum; possible duplicate scraped ",
+            "404": "File /{}/:{}:{}:{} not found on 4plebs, scraping 4plebs thumbnail ",
+            "error_loading": "Error: Cannot load 4plebs file /{}/:{}:{}:{} "
+        }
+    },
+    "4plebsthumbs": {
+        "URL": {
+            "image": "https://i.4pcdn.org/"
+        },
+        "DownloadMediaPost_Errors": {
+            "MD5_same": "File /{}/:{}:{}:{}(thumb) already exists with same MD5 checksum; not scraping again ",
+            "MD5_diff": "File /{}/:{}:{}:{}(thumb) already exists with different MD5 checksum; possible duplicate scraped ",
+            "404": "File /{}/:{}:{}:{}(thumb) not found on 4plebs ",
+            "error_loading": "Error: Cannot load 4plebs file /{}/:{}:{}:{}(thumb) "
+        }
+    }
 }
-ScrapeFile_Errors = {
-    "4chan": {"MD5_same": "File /{}/:{}:{}:{} already exists with same MD5 checksum; not scraping again ",
-              "MD5_diff": "File /{}/:{}:{}:{} already exists with different MD5 checksum; possible duplicate scraped ",
-              "404": "File /{}/:{}:{}:{} not found on 4chan, scraping 4plebs file ",
-              "404_no_4plebs": "File /{}/:{}:{}:{} not found on 4chan and not on 4plebs ",
-              "error_loading": "Error: Cannot load 4chan file /{}/:{}:{}:{} "},
-    "4plebs": {"MD5_same": "File /{}/:{}:{}:{} already exists with same MD5 checksum; not scraping again ",
-               "MD5_diff": "File /{}/:{}:{}:{} already exists with different MD5 checksum; possible duplicate scraped ",
-               "404": "File /{}/:{}:{}:{} not found on 4plebs, scraping 4plebs thumbnail ",
-               "error_loading": "Error: Cannot load 4plebs file /{}/:{}:{}:{} "},
-    "4plebsthumbs": {"MD5_same": "File /{}/:{}:{}:{}(thumb) already exists with same MD5 checksum; not scraping again ",
-                     "MD5_diff": "File /{}/:{}:{}:{}(thumb) already exists with different MD5 checksum; possible duplicate scraped ",
-                     "404": "File /{}/:{}:{}:{}(thumb) not found on 4plebs ",
-                     "error_loading": "Error: Cannot load 4plebs file /{}/:{}:{}:{}(thumb) "}
-}
+
+################################################################################
+
+class MediaPost():
+    def __init__(self, boardcode, opno, keyword, no, tim, ext, md564):
+        self.boardcode = boardcode
+        self.opno = opno
+        self.keyword = keyword
+        self.no = no
+        self.tim = tim
+        self.ext = ext
+        self.md564 = md564
 
 ################################################################################
 
@@ -57,7 +97,7 @@ def ThreadLocked(lock_object):
 
 ################################################################################
 
-def updateThreads():
+def UpdateThreads():
     """Update normal (keyword) threads to scrape"""
     print("~Updating known threads of interest~")
     boardsNotToPrune = []
@@ -70,7 +110,7 @@ def updateThreads():
 
         try:
             print("~Getting JSON for catalog of /{}/~".format(board))
-            catalogjson_url = ("https://a.4cdn.org/{}/catalog.json".format(board))
+            catalogjson_url = ConstantStrings["4chan"]["URL"]["catalogJSON"].format(board)
             catalogjson_file = urllib.request.urlopen(catalogjson_url)
             catalogjson = json.load(catalogjson_file)
             blacklist_expired = [t for t in idnos_bl]
@@ -106,7 +146,7 @@ def updateThreads():
 
 ################################################################################
 
-def scrape(forcePlebs):
+def Scrape(forcePlebs):
     boards = cm.valueGet("downloaded")
 
     # do special requests
@@ -127,7 +167,7 @@ def scrape(forcePlebs):
         for board in nonemptyBoards_special:
             tasks_special = cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")
             for task in [t for t in tasks_special]:
-                result = scrapeThread(board,*task,ljustLength,forcePlebs)
+                result = ScrapeThread(board,*task,ljustLength,forcePlebs)
                 if result[0] == 'keep':
                     cm.tpt_updateTaskByIdno("downloaded/{}".format(board),task[0],result[1])
                 else:
@@ -147,7 +187,7 @@ def scrape(forcePlebs):
             tasksToScrape = cm.tpt_getTasksInTier("downloaded/{}".format(board),"normal")[:]
             ljustLength = max([14+len(board)+len(str(task[0]))+len(task[1]) for task in tasksToScrape]) if tasksToScrape else 14
             for task in tasksToScrape:
-                if (result := scrapeThread(board,*task,ljustLength,forcePlebs))[0] == 'keep':
+                if (result := ScrapeThread(board,*task,ljustLength,forcePlebs))[0] == 'keep':
                     cm.tpt_updateTaskByIdno("downloaded/{}".format(board),task[0],result[1])
                 else:
                     cm.tpt_finishTaskByIdno("downloaded/{}".format(board),task[0])
@@ -159,154 +199,164 @@ def scrape(forcePlebs):
 
 ################################################################################
 
-def scrapeThread(boardcode,threadopno,keyword,scrapednos,padding,forcePlebs):
+def ScrapeThread(boardcode, threadopno, keyword, scrapednos, padding, forcePlebs):
     if not forcePlebs:
-        filelist = getFileList(boardcode,threadopno,keyword,'4chan')
+        mediaPosts = GetMediaPostsList(boardcode, threadopno, keyword, "4chan")
         filestart = 0
-    if forcePlebs or filelist[0] in ['try_4plebs']:
-        filelist = getFileList(boardcode,threadopno,keyword,'4plebs')
+    if forcePlebs or mediaPosts[0] in ["try_4plebs"]:
+        mediaPosts = GetMediaPostsList(boardcode, threadopno, keyword, "4plebs")
         filestart = 1
-    if filelist[0] in ['keep','delete']:
-        return [filelist[0],scrapednos]
-    #otherwise 'now_scrape'
-    impostslist = filelist[1]
+    if mediaPosts[0] in ["keep", "delete"]:
+        return [mediaPosts[0], scrapednos]
+    #otherwise "now_scrape"
+    mediaPostsList = mediaPosts[1]
 
-    threadaddress=("downloaded/{}/{} {}".format(boardcode,str(threadopno),keyword))
-    cm.ffm_makedirs("{}/thumbs".format(threadaddress))
+    threadDownloadFolderPath = "downloaded/{}/{} {}".format(boardcode, str(threadopno), keyword)
+    cm.ffm_makedirs("{}/thumbs".format(threadDownloadFolderPath))
 
     #Scrape files
-    pm.progressmsg(msg="Scraping /{}/:{}:{} ".format(boardcode,str(threadopno),keyword).ljust(padding),of=len(impostslist))
+    pm.progressmsg(msg = "Scraping /{}/:{}:{} ".format(boardcode, str(threadopno), keyword).ljust(padding), of = len(mediaPostsList))
     keepflag = 0
 
     postbuffers = [[] for i in range(numberOfDownloadThreads)]
-    def ScrapeFile_download_thread(dtid):
+    def DownloadMediaPost_thread(dtid):
         nonlocal keepflag, postbuffers
         while True:
             with lock:
                 try:
-                    postbuffers[dtid] = impostslist.pop(0)
-                    if postbuffers[dtid]["no"] in scrapednos:
+                    postbuffers[dtid] = mediaPostsList.pop(0)
+                    if postbuffers[dtid].no in scrapednos:
                         pm.tick()
                         continue
                 except IndexError:
                     return
-            for modus in ['4chan','4plebs','4plebsthumbs'][filestart:]:
-                result = ScrapeFile(threadaddress,postbuffers[dtid],modus,boardcode,threadopno,keyword)
+            for modus in ["4chan", "4plebs", "4plebsthumbs"][filestart:]:
+                result = DownloadMediaPost(threadDownloadFolderPath, postbuffers[dtid], modus)
                 with lock:
-                    if result == 'success':
-                        scrapednos.append(postbuffers[dtid]["no"])
+                    if result == "success":
+                        scrapednos.append(postbuffers[dtid].no)
                         pm.tick()
                         break
-                    elif result == 'keep':
+                    elif result == "keep":
                         keepflag = 1
                         break
-                    elif result == 'try_next_modus':
+                    elif result == "try_next_modus":
                         continue
 
-    download_threads = [threading.Thread(target = ScrapeFile_download_thread, args=[i]) for i in range(numberOfDownloadThreads)]
+    download_threads = [threading.Thread(target = DownloadMediaPost_thread, args=[i]) for i in range(numberOfDownloadThreads)]
     for t in download_threads:
         t.start()
     for t in download_threads:
         t.join()
     pm.finish()
 
-    cm.ffm_rmIfEmptyTree(threadaddress+"/thumbs")
-    cm.ffm_rmIfEmptyTree(threadaddress)
+    cm.ffm_rmIfEmptyTree("{}/thumbs".format(threadDownloadFolderPath))
+    cm.ffm_rmIfEmptyTree(threadDownloadFolderPath)
 
-    if keepflag == 0 and (filestart!=0 or filelist[2] == True):
-        return ['delete']
+    if keepflag == 0 and (filestart!=0 or mediaPosts[2] == True):
+        return ["delete"]
     else:
-        return ['keep',scrapednos]
+        return ["keep", scrapednos]
 
 ################################################################################
 
-def getFileList(boardcode,threadopno,keyword,modus):
-    def gfl_error(num):
-        gfl_errors = [
-            "Thread /{}/:{}:{} not found on 4chan, trying 4plebs",
-            "Thread /{}/:{}:{} not found on 4chan and not on 4plebs",
-            "Error: Cannot load 4chan thread /{}/:{}:{}",
-            "Thread /{}/:{}:{} not found on 4plebs",
-            "Error: Cannot load 4plebs thread /{}/:{}:{}"]
-        print(gfl_errors[num].format(boardcode,str(threadopno),keyword))
+def GetMediaPostsList(boardcode, threadopno, keyword, modus):
+    def gmpl_error(code):
+        print(ConstantStrings[modus]["GetMediaPostsList_Errors"][code].format(boardcode,str(threadopno),keyword))
 
-    if modus == '4chan':
+    if modus == "4chan":
         try:
-            threadjson_url = 'https://a.4cdn.org/{}/thread/{}.json'.format(boardcode,str(threadopno))
+            threadjson_url = ConstantStrings[modus]["URL"]["threadJSON"].format(boardcode,str(threadopno))
             threadjson_file = urllib.request.urlopen(threadjson_url)
             threadjson = json.load(threadjson_file)
-            impostslist = [{"no":post['no'],"tim":post['tim'],"ext":post['ext'],"md564":post['md5']} for post in threadjson["posts"] if "tim" in post]
-            return ['now_scrape',impostslist,'archived' in threadjson["posts"][0]]
+            mediaPostsList = [MediaPost(boardcode, threadopno, keyword, post["no"], post["tim"], post["ext"], post["md5"]) for post in threadjson["posts"] if "tim" in post]
+            return ["now_scrape",mediaPostsList,"archived" in threadjson["posts"][0]]
         except Exception as e:
-            if hasattr(e,'code') and e.code == 404: # pylint: disable=E1101
+            if hasattr(e,"code") and e.code == 404: # pylint: disable=E1101
                 if boardcode in plebBoards:
-                    gfl_error(0)
-                    return ['try_4plebs']
+                    gmpl_error("404")
+                    return ["try_4plebs"]
                 else:
-                    gfl_error(1)
-                    return ['delete']
+                    gmpl_error("404_no_4plebs")
+                    return ["delete"]
             else:
-                gfl_error(2)
-                return ['keep']
+                gmpl_error("error_loading")
+                return ["keep"]
 
-    elif modus == '4plebs':
+    elif modus == "4plebs":
         try:
-            threadjson_url = "http://archive.4plebs.org/_/api/chan/thread/?board={}&num={}".format(boardcode,str(threadopno))
-            threadjson_file = urllib.request.urlopen(urllib.request.Request(threadjson_url,None,{'User-Agent':plebsHTTPHeader}))
+            threadjson_url = ConstantStrings[modus]["URL"]["threadJSON"].format(boardcode,str(threadopno))
+            threadjson_file = urllib.request.urlopen(urllib.request.Request(threadjson_url,None,{"User-Agent":plebsHTTPHeader}))
             threadjson = json.load(threadjson_file)
-            if 'error' in threadjson:
-                if threadjson['error'] == 'Thread not found.':
-                    raise urllib.request.HTTPError(threadjson_url,404,'error key in json','','')
+            if "error" in threadjson:
+                if threadjson["error"] == "Thread not found.":
+                    raise urllib.request.HTTPError(threadjson_url,404,"error key in json","","")
                 else:
                     raise Exception
-            impostslist = []
+            mediaPostsList = []
             if "op" in threadjson[str(threadopno)] and threadjson[str(threadopno)]["op"]["media"] != None:
-                impostslist.append({"no":int(threadjson[str(threadopno)]["op"]["num"]),"tim":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[0],"ext":os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[1],"md564":threadjson[str(threadopno)]["op"]["media"]["media_hash"]})
+                mediaPostsList.append(MediaPost(
+                    boardcode,
+                    threadopno,
+                    keyword,
+                    threadopno,
+                    os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[0],
+                    os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[1],
+                    threadjson[str(threadopno)]["op"]["media"]["media_hash"]
+                ))
             if "posts" in threadjson[str(threadopno)]:
                 for postvalue in threadjson[str(threadopno)]["posts"].values():
                     if postvalue["media"] != None:
-                        impostslist.append({"no":int(postvalue["num"]),"tim":os.path.splitext(postvalue["media"]["media"])[0],"ext":os.path.splitext(postvalue["media"]["media"])[1],"md564":postvalue["media"]["media_hash"]})
-            return ['now_scrape',impostslist]
+                        mediaPostsList.append(MediaPost(
+                            boardcode,
+                            threadopno,
+                            keyword,
+                            int(postvalue["num"]),
+                            os.path.splitext(postvalue["media"]["media"])[0],
+                            os.path.splitext(postvalue["media"]["media"])[1],
+                            postvalue["media"]["media_hash"]
+                        ))
+            return ["now_scrape", mediaPostsList]
         except Exception as e:
-            if hasattr(e,'code') and e.code in [404,'404']: # pylint: disable=E1101
-                gfl_error(3)
-                return ['delete']
+            if hasattr(e, "code") and e.code in [404, "404"]: # pylint: disable=E1101
+                gmpl_error("404")
+                return ["delete"]
             else:
-                gfl_error(4)
-                return ['keep']
+                gmpl_error("error_loading")
+                return ["keep"]
 
 ################################################################################
 
-def ScrapeFile(threadaddress, post, modus, boardcode, threadopno, keyword):
+def DownloadMediaPost(threadDownloadFolderPath, post, modus):
     @ThreadLocked(lock)
     def sf_error(code):
-        pm.progressmsg(msg = ScrapeFile_Errors[modus][code].format(boardcode, threadopno, keyword, str(post["no"])))
+        pm.progressmsg(msg = ConstantStrings[modus]["DownloadMediaPost_Errors"][code].format(post.boardcode, post.opno, post.keyword, str(post.no)))
 
     try:
         if modus == "4plebsthumbs":
-            threadaddress = "{}/thumbs".format(threadaddress)
-            imgaddress = "{}/{}.jpg".format(threadaddress, str(post["no"]))
+            threadDownloadFolderPath = "{}/thumbs".format(threadDownloadFolderPath)
+            imgaddress = "{}/{}.jpg".format(threadDownloadFolderPath, str(post.no))
         else:
-            imgaddress = "{}/{}{}".format(threadaddress, str(post["no"]), post["ext"])
+            imgaddress = "{}/{}{}".format(threadDownloadFolderPath, str(post.no), post.ext)
         if os.path.exists(imgaddress):
-            if saomd5.isHashHex(imgaddress, saomd5.base64ToHex(post["md564"])):
+            if saomd5.isHashHex(imgaddress, saomd5.base64ToHex(post.md564)):
                 sf_error("MD5_same")
                 return "success"
             else:
                 sf_error("MD5_diff")
                 rn_name, rn_ext = os.path.splitext(imgaddress)
                 os.rename(imgaddress, "{}{}{}{}".format(rn_name, "_", str(int(time())), rn_ext))
-        imgdomain = GLOBAL_ImageDomains[modus]
+        imgdomain = ConstantStrings[modus]["URL"]["image"]
         if modus == "4plebsthumbs":
-            imgurl = "{}{}/{}s.jpg".format(imgdomain, boardcode, str(post["tim"]))
+            imgurl = "{}{}/{}s.jpg".format(imgdomain, post.boardcode, str(post.tim))
         else:
-            imgurl = "{}{}/{}{}".format(imgdomain, boardcode, str(post["tim"]), post["ext"])
+            imgurl = "{}{}/{}{}".format(imgdomain, post.boardcode, str(post.tim), post.ext)
         urllib.request.urlretrieve(imgurl, imgaddress)
         return "success"
     except Exception as e:
         if hasattr(e, "code") and e.code in [404, "404"]: # pylint: disable=E1101
             if modus == "4chan":
-                if boardcode in plebBoards:
+                if post.boardcode in plebBoards:
                     sf_error("404")
                     return "try_next_modus"
                 else:
@@ -324,7 +374,7 @@ def ScrapeFile(threadaddress, post, modus, boardcode, threadopno, keyword):
 
 ################################################################################
 
-def viewRequests():
+def ViewRequests():
     someRequests = False
     for board in cm.valueGet("downloaded"):
         requests = cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")
@@ -342,7 +392,7 @@ def viewRequests():
 
 ################################################################################
 
-def viewKeywords():
+def ViewKeywords():
     someKeywords = False
     for board in cm.valueGet("downloaded"):
         keywords_wl = cm.tpt_getkeywords_wl("downloaded/{}".format(board))
@@ -359,7 +409,7 @@ def viewKeywords():
 
 ################################################################################
 
-def viewBlacklisting():
+def ViewBlacklisting():
     someBlacklisted = False
     for board in cm.valueGet("downloaded"):
         idnos_bl = cm.tpt_getidnos_bl("downloaded/{}".format(board))
@@ -428,11 +478,11 @@ if __name__ == "__main__":
     if args.logo:
         saotitle.printLogoTitle(title = "Bateman\'s 4chan Scraper", subtitle = "Version {}".format(version))
     if args.view:
-        viewRequests()
+        ViewRequests()
         print()
-        viewKeywords()
+        ViewKeywords()
         print()
-        viewBlacklisting()
+        ViewBlacklisting()
     if args.request:
         try:
             arg_split = args.request.split(':', 2)
@@ -522,11 +572,11 @@ if __name__ == "__main__":
             keyword = arg_split.pop(0)
         except IndexError:
             keyword = "oneoff"
-        scrapeThread(board, opno, keyword, [], 14, args.plebs)
+        ScrapeThread(board, opno, keyword, [], 14, args.plebs)
     if args.update:
-        updateThreads()
+        UpdateThreads()
         cm.save()
     elif args.scrape:
-        updateThreads()
-        scrape(args.plebs)
+        UpdateThreads()
+        Scrape(args.plebs)
         cm.save()
