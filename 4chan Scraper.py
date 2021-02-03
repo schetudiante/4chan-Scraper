@@ -2,7 +2,7 @@
 """https://github.com/SelfAdjointOperator/4chan-Scraper"""
 
 import urllib.request       #   getting files from web
-import json                 #   config file and api pages jsons to and from dictionary
+import json                 #   config file and api pages JSONs to and from dictionary
 import os                   #   managing folders
 import threading            #   multiple simultaneous downloads
 from time import sleep,time #   sleep if 4plebs search cooldown reached, restart delay
@@ -98,8 +98,6 @@ def ThreadLocked(lock_object):
 ################################################################################
 
 def UpdateThreads():
-    """Update normal (keyword) threads to scrape"""
-    print("~Updating known threads of interest~")
     boardsNotToPrune = []
     boards = cm.valueGet("downloaded")
     nonemptyBoards_keywords = [board for board in boards if cm.tpt_getkeywords_wl("downloaded/{}".format(board))]
@@ -109,25 +107,25 @@ def UpdateThreads():
         idnos_done = cm.tpt_getidnos_done("downloaded/{}".format(board))
 
         try:
-            print("~Getting JSON for catalog of /{}/~".format(board))
-            catalogjson_url = ConstantStrings["4chan"]["URL"]["catalogJSON"].format(board)
-            catalogjson_file = urllib.request.urlopen(catalogjson_url)
-            catalogjson = json.load(catalogjson_file)
+            print("Getting JSON for catalog of /{}/".format(board))
+            catalogJSON_url = ConstantStrings["4chan"]["URL"]["catalogJSON"].format(board)
+            catalogJSON_file = urllib.request.urlopen(catalogJSON_url)
+            catalogJSON = json.load(catalogJSON_file)
             blacklist_expired = [t for t in idnos_bl]
 
-            for page in catalogjson:
-                for threadop in page["threads"]:
-                    opno = threadop["no"]
+            for page in catalogJSON:
+                for opPost in page["threads"]:
+                    opno = opPost["no"]
                     if opno in idnos_bl:
                         blacklist_expired.remove(opno)
                         continue
                     if opno in idnos_done:
                         continue
                     boxbreak = False
-                    boxestocheck = [box for box in boxestocheckfor["4chan"] if box in threadop]
+                    boxestocheck = [box for box in boxestocheckfor["4chan"] if box in opPost]
                     for boxtocheck in boxestocheck:
                         for keyword in keywords_wl:
-                            if keyword in threadop[boxtocheck].lower():
+                            if keyword in opPost[boxtocheck].lower():
                                 cm.tpt_promoteTaskToByIdno("downloaded/{}".format(board),opno,keyword=keyword,promotionTier="normal")
                                 boxbreak = True
                                 break
@@ -142,7 +140,6 @@ def UpdateThreads():
         if not board in boardsNotToPrune:
             for task in cm.tpt_pruneTasks("downloaded/{}".format(board),tiers=["normal"],keywords_wl=True,idnos_bl=True,idnos_done=True)["normal"]:
                 cm.ffm_rmIfEmptyTree("downloaded/{}/{} {}".format(board,str(task[0]),task[1]))
-    print("~Updated{}~".format(" with some errors" if boardsNotToPrune else ""))
 
 ################################################################################
 
@@ -152,9 +149,9 @@ def Scrape(forcePlebs):
     # do special requests
     nonemptyBoards_special = [board for board in boards if cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")]
     if not nonemptyBoards_special:
-        print("~Currently no special requests~")
+        print("No special requests")
     else:
-        print("~Doing special requests~")
+        print("Doing special requests")
         if forcePlebs:
             for board in nonemptyBoards_special:
                 if not board in plebBoards:
@@ -176,14 +173,14 @@ def Scrape(forcePlebs):
     # do normal scraping
     nonemptyBoards_keywords = [board for board in boards if cm.tpt_getkeywords_wl("downloaded/{}".format(board))]
     if not nonemptyBoards_keywords:
-        print("~Currently not scraping any keywords~")
+        print("Not scraping for any keywords")
     else:
-        print("~Doing normal scraping~")
+        print("Scraping for keywords")
         for board in nonemptyBoards_keywords:
             if forcePlebs and not board in plebBoards:
-                print("~Skipping board /{}/ because of --plebs flag~".format(board))
+                print("Skipping board /{}/ because of --plebs flag".format(board))
                 continue
-            print("~Scraping threads from /{}/~".format(board))
+            print("Scraping threads from /{}/".format(board))
             tasksToScrape = cm.tpt_getTasksInTier("downloaded/{}".format(board),"normal")[:]
             ljustLength = max([14+len(board)+len(str(task[0]))+len(task[1]) for task in tasksToScrape]) if tasksToScrape else 14
             for task in tasksToScrape:
@@ -195,7 +192,7 @@ def Scrape(forcePlebs):
     for board in boards:
         cm.ffm_rmIfEmptyTree("downloaded/{}".format(board))
 
-    print("~Done scraping~")
+    print("Done scraping")
 
 ################################################################################
 
@@ -266,11 +263,11 @@ def GetMediaPostsList(boardcode, threadopno, keyword, modus):
 
     if modus == "4chan":
         try:
-            threadjson_url = ConstantStrings[modus]["URL"]["threadJSON"].format(boardcode,str(threadopno))
-            threadjson_file = urllib.request.urlopen(threadjson_url)
-            threadjson = json.load(threadjson_file)
-            mediaPostsList = [MediaPost(boardcode, threadopno, keyword, post["no"], post["tim"], post["ext"], post["md5"]) for post in threadjson["posts"] if "tim" in post]
-            return ["now_scrape",mediaPostsList,"archived" in threadjson["posts"][0]]
+            threadJSON_url = ConstantStrings[modus]["URL"]["threadJSON"].format(boardcode,str(threadopno))
+            threadJSON_file = urllib.request.urlopen(threadJSON_url)
+            threadJSON = json.load(threadJSON_file)
+            mediaPostsList = [MediaPost(boardcode, threadopno, keyword, post["no"], post["tim"], post["ext"], post["md5"]) for post in threadJSON["posts"] if "tim" in post]
+            return ["now_scrape",mediaPostsList,"archived" in threadJSON["posts"][0]]
         except Exception as e:
             if hasattr(e,"code") and e.code == 404: # pylint: disable=E1101
                 if boardcode in plebBoards:
@@ -285,27 +282,27 @@ def GetMediaPostsList(boardcode, threadopno, keyword, modus):
 
     elif modus == "4plebs":
         try:
-            threadjson_url = ConstantStrings[modus]["URL"]["threadJSON"].format(boardcode,str(threadopno))
-            threadjson_file = urllib.request.urlopen(urllib.request.Request(threadjson_url,None,{"User-Agent":plebsHTTPHeader}))
-            threadjson = json.load(threadjson_file)
-            if "error" in threadjson:
-                if threadjson["error"] == "Thread not found.":
-                    raise urllib.request.HTTPError(threadjson_url,404,"error key in json","","")
+            threadJSON_url = ConstantStrings[modus]["URL"]["threadJSON"].format(boardcode,str(threadopno))
+            threadJSON_file = urllib.request.urlopen(urllib.request.Request(threadJSON_url,None,{"User-Agent":plebsHTTPHeader}))
+            threadJSON = json.load(threadJSON_file)
+            if "error" in threadJSON:
+                if threadJSON["error"] == "Thread not found.":
+                    raise urllib.request.HTTPError(threadJSON_url,404,"error key in JSON","","")
                 else:
                     raise Exception
             mediaPostsList = []
-            if "op" in threadjson[str(threadopno)] and threadjson[str(threadopno)]["op"]["media"] != None:
+            if "op" in threadJSON[str(threadopno)] and threadJSON[str(threadopno)]["op"]["media"] != None:
                 mediaPostsList.append(MediaPost(
                     boardcode,
                     threadopno,
                     keyword,
                     threadopno,
-                    os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[0],
-                    os.path.splitext(threadjson[str(threadopno)]["op"]["media"]["media"])[1],
-                    threadjson[str(threadopno)]["op"]["media"]["media_hash"]
+                    os.path.splitext(threadJSON[str(threadopno)]["op"]["media"]["media"])[0],
+                    os.path.splitext(threadJSON[str(threadopno)]["op"]["media"]["media"])[1],
+                    threadJSON[str(threadopno)]["op"]["media"]["media_hash"]
                 ))
-            if "posts" in threadjson[str(threadopno)]:
-                for postvalue in threadjson[str(threadopno)]["posts"].values():
+            if "posts" in threadJSON[str(threadopno)]:
+                for postvalue in threadJSON[str(threadopno)]["posts"].values():
                     if postvalue["media"] != None:
                         mediaPostsList.append(MediaPost(
                             boardcode,
@@ -374,58 +371,6 @@ def DownloadMediaPost(threadDownloadFolderPath, post, modus):
 
 ################################################################################
 
-def ViewRequests():
-    someRequests = False
-    for board in cm.valueGet("downloaded"):
-        requests = cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")
-        if requests:
-            if not someRequests:
-                print("Current special requests:")
-                someRequests = True
-            for request in requests:
-                print("/{}/:{}:{}".format(board,str(request[0]),request[1]))
-    if not someRequests:
-        print("Currently no special requests")
-        return False
-    else:
-        return True
-
-################################################################################
-
-def ViewKeywords():
-    someKeywords = False
-    for board in cm.valueGet("downloaded"):
-        keywords_wl = cm.tpt_getkeywords_wl("downloaded/{}".format(board))
-        if keywords_wl:
-            if not someKeywords:
-                print("Currently scraping:")
-                someKeywords = True
-            print("/{}/:".format(board),", ".join(keywords_wl))
-    if not someKeywords:
-        print("Currently not scraping any boards")
-        return False
-    else:
-        return True
-
-################################################################################
-
-def ViewBlacklisting():
-    someBlacklisted = False
-    for board in cm.valueGet("downloaded"):
-        idnos_bl = cm.tpt_getidnos_bl("downloaded/{}".format(board))
-        if idnos_bl:
-            if not someBlacklisted:
-                print("Currently blacklisting:")
-                someBlacklisted = True
-            print("/{}/:".format(board),", ".join([str(opno) for opno in idnos_bl]))
-    if not someBlacklisted:
-        print("Currently not blacklisting any threads")
-        return False
-    else:
-        return True
-
-################################################################################
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description =
         """Download attachments from 4chan or 4plebs.
@@ -478,11 +423,39 @@ if __name__ == "__main__":
     if args.logo:
         saotitle.printLogoTitle(title = "Bateman\'s 4chan Scraper", subtitle = "Version {}".format(version))
     if args.view:
-        ViewRequests()
-        print()
-        ViewKeywords()
-        print()
-        ViewBlacklisting()
+        someRequests = False
+        for board in cm.valueGet("downloaded"):
+            requests = cm.tpt_getTasksInTier("downloaded/{}".format(board),"special")
+            if requests:
+                if not someRequests:
+                    print("Special requests:")
+                    someRequests = True
+                for request in requests:
+                    print("/{}/:{}:{}".format(board,str(request[0]),request[1]))
+        if not someRequests:
+            print("No special requests")
+
+        someKeywords = False
+        for board in cm.valueGet("downloaded"):
+            keywords_wl = cm.tpt_getkeywords_wl("downloaded/{}".format(board))
+            if keywords_wl:
+                if not someKeywords:
+                    print("Keywords scraping for:")
+                    someKeywords = True
+                print("/{}/:".format(board),", ".join(keywords_wl))
+        if not someKeywords:
+            print("Not scraping any boards")
+
+        someBlacklisted = False
+        for board in cm.valueGet("downloaded"):
+            idnos_bl = cm.tpt_getidnos_bl("downloaded/{}".format(board))
+            if idnos_bl:
+                if not someBlacklisted:
+                    print("Blacklisting:")
+                    someBlacklisted = True
+                print("/{}/:".format(board),", ".join([str(opno) for opno in idnos_bl]))
+        if not someBlacklisted:
+            print("Not blacklisting any threads")
     if args.request:
         try:
             arg_split = args.request.split(':', 2)
@@ -521,9 +494,9 @@ if __name__ == "__main__":
         else:
             print("No keywords added to /{}/".format(board))
         if keywordsNow:
-            print("Current keywords for /{}/: {}".format(board, ", ".join(keywordsNow)))
+            print("Keywords for /{}/: {}".format(board, ", ".join(keywordsNow)))
         else:
-            print("Currently no keywords for /{}/ - not scraping it".format(board))
+            print("No keywords for /{}/ - not scraping it".format(board))
         cm.save()
     if args.delete:
         try:
@@ -542,9 +515,9 @@ if __name__ == "__main__":
         else:
             print("No keywords removed from /{}/".format(board))
         if keywordsNow:
-            print("Current keywords for /{}/: {}".format(board, ", ".join(keywordsNow)))
+            print("Keywords for /{}/: {}".format(board, ", ".join(keywordsNow)))
         else:
-            print("Currently no keywords for /{}/ - not scraping it".format(board))
+            print("No keywords for /{}/ - not scraping it".format(board))
         cm.save()
     if args.blacklist:
         try:
