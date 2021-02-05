@@ -1,5 +1,8 @@
 # Changelog
 
+## v4.0.1
+- `-p` flag no longer affects non-plebs boards
+
 ## v4.0.0
 - Move to CLI support (`argparse`) instead of own mainloop
 - Add `-l` flag for optional SAO logo

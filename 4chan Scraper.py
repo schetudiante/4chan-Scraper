@@ -14,7 +14,7 @@ from saosuite import saostatusmsgs
 from saosuite import saoconfigmanager
 from saosuite import saomd5
 
-GLOBAL_version = "4.1.0"
+GLOBAL_version = "4.0.1"
 
 class MediaPost():
     def __init__(self, boardcode, opno, keyword, no, tim, ext, md564):
