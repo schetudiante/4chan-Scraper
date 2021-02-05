@@ -124,6 +124,9 @@ class Scraper():
         if not someBlacklisted:
             print("Currently not blacklisting any threads")
 
+    def SaveConfig(self):
+        self.cm.save()
+
     def UpdateThreads(self):
         boardsNotToPrune = []
         boards = self.cm.valueGet("downloaded")
@@ -466,14 +469,12 @@ if __name__ == "__main__":
                 print("Thread /{}/:{}:{} added to special requests".format(board, str(opno), keyword))
             else:
                 print("Already scraped /{}/:{}:{}".format(board, str(opno), keyword))
-        scraper.cm.save()
+        scraper.SaveConfig()
     if args.add:
         try:
             arg_split = args.add.split(':', 1)
             board = arg_split.pop(0)
             keywords = arg_split.pop(0).split(',')
-            keywords = [t.lower().replace("_"," ").strip() for t in keywords]
-            keywords = [t for t in keywords if t]
         except:
             print("Error parsing --add argument. Format must be 'boardcode:word1,word2,...,wordn'")
             raise SystemExit
@@ -487,14 +488,12 @@ if __name__ == "__main__":
             print("Keywords for /{}/: {}".format(board, ", ".join(keywordsNow)))
         else:
             print("No keywords for /{}/ - not scraping it".format(board))
-        scraper.cm.save()
+        scraper.SaveConfig()
     if args.delete:
         try:
             arg_split = args.delete.split(':', 1)
             board = arg_split.pop(0)
             keywords = arg_split.pop(0).split(',')
-            keywords = [t.lower().replace("_"," ").strip() for t in keywords]
-            keywords = [t for t in keywords if t]
         except:
             print("Error parsing --delete argument. Format must be 'boardcode:word1,word2,...,wordn'")
             raise SystemExit
@@ -508,7 +507,7 @@ if __name__ == "__main__":
             print("Keywords for /{}/: {}".format(board, ", ".join(keywordsNow)))
         else:
             print("No keywords for /{}/ - not scraping it".format(board))
-        scraper.cm.save()
+        scraper.SaveConfig()
     if args.blacklist:
         try:
             arg_split = args.blacklist.split(':')
@@ -521,7 +520,7 @@ if __name__ == "__main__":
             print("No longer blacklisting /{}/:{}".format(board,str(opno)))
         else:
             print("Now blacklisting /{}/:{}".format(board,str(opno)))
-        scraper.cm.save()
+        scraper.SaveConfig()
 
     if args.oneoff:
         try:
@@ -538,8 +537,8 @@ if __name__ == "__main__":
         scraper.ScrapeThread(board, opno, keyword, [], 14)
     if args.update:
         scraper.UpdateThreads()
-        scraper.cm.save()
+        scraper.SaveConfig()
     if args.scrape:
         scraper.UpdateThreads()
         scraper.Scrape()
-        scraper.cm.save()
+        scraper.SaveConfig()

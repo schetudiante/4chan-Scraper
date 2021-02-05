@@ -204,6 +204,8 @@ class configmanager():
         return_keywordsAdded = []
         for keyword in keywords:
             keyword = self.tpt_sanitiseKeyword(keyword)
+            if not keyword:
+                continue
             if not keyword in tpt_system["keywords_wl"]:
                 tpt_system["keywords_wl"].append(keyword)
                 return_keywordsAdded.append(keyword)
@@ -218,6 +220,8 @@ class configmanager():
         return_keywordsRemoved = []
         for keyword in keywords:
             keyword = self.tpt_sanitiseKeyword(keyword)
+            if not keyword:
+                continue
             try:
                 tpt_system["keywords_wl"].remove(keyword)
                 return_keywordsRemoved.append(keyword)
