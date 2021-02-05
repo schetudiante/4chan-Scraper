@@ -204,6 +204,8 @@ class configmanager():
         return_keywordsAdded = []
         for keyword in keywords:
             keyword = self.tpt_sanitiseKeyword(keyword)
+            if not keyword:
+                continue
             if not keyword in tpt_system["keywords_wl"]:
                 tpt_system["keywords_wl"].append(keyword)
                 return_keywordsAdded.append(keyword)
@@ -218,6 +220,8 @@ class configmanager():
         return_keywordsRemoved = []
         for keyword in keywords:
             keyword = self.tpt_sanitiseKeyword(keyword)
+            if not keyword:
+                continue
             try:
                 tpt_system["keywords_wl"].remove(keyword)
                 return_keywordsRemoved.append(keyword)
@@ -300,7 +304,7 @@ class configmanager():
 
     def tpt_promoteTaskByIdno(self, path, idno, keyword = None):
         """Promotes a task up a tier if a higher tier exists. Promotes new tasks to lowest tier.
-        If $keyword is a string then the task's keyword is overriden by $keyword, else if $keyword is True then an input prompt gets a new keyword, else the task's existing keyword is prefixed with "_PROMOTED_". Note at most one prefix appears before a keyword (prefixes do not accumulate).
+        If $keyword is a string then the task's keyword is overriden by $keyword, else the task's existing keyword is prefixed with "_PROMOTED_". Note at most one prefix appears before a keyword (prefixes do not accumulate).
         Returns a 2-tuple: True if a promotion happens else returns False (ie False iff already at top tier), and the task's old keyword"""
         tpt_system = self.tpt_touch(path)
         tpt_system_tiers = tpt_system["tiers"]
@@ -335,8 +339,7 @@ class configmanager():
 
     def tpt_demoteTaskByIdno(self, path, idno, keyword = None):
         """Demotes a task down a tier if the task exists. Removes a task if it is already at the lowest tier.
-        If $keyword is a string then the task's keyword is overriden by this. If $keyword is True then an input prompt gets a new keyword.
-        Else the task's existing keyword is prefixed with "_DEMOTED_". Note at most one prefix appears before a keyword (prefixes do not accumulate).
+        If $keyword is a string then the task's keyword is overriden by $keyword, else the task's existing keyword is prefixed with "_DEMOTED_". Note at most one prefix appears before a keyword (prefixes do not accumulate).
         Returns a 2-tuple: True if a demotion happens else returns False (ie False iff task doesn't exist), and the task's old keyword"""
         tpt_system_tiers = self.tpt_touch(path)["tiers"]
         tpt_system_tiersList = list(tpt_system_tiers)
@@ -537,9 +540,7 @@ class configmanager():
         Will rename / create directories accordingly if self.tpt_manageDirectories == True"""
         if self.tpt_manageDirectories:
             keyword_old = task[:][1]
-        if keyword is True:
-            task[1] = self.tpt_sanitiseKeyword(input("What keyword(s) to use? "))
-        elif isinstance(keyword,str):
+        if isinstance(keyword,str):
             task[1] = self.tpt_sanitiseKeyword(keyword)
         elif depro == "PRO":
             if not task[1].startswith("_PROMOTED_"):

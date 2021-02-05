@@ -27,7 +27,7 @@ Update the lists of threads to scraped, but do not scrape them now. Also prunes 
 Calls --update and then scrapes
 
 [--plebs]
-Only use 4plebs as source of thread JSON and attachments. Affects flags --oneoff and --scrape
+Force the use of 4plebs as the source of thread JSON and attachments for pleb boards. Affects flags --oneoff and --scrape
 
 [--view]
 View the current requests, keywords, and blacklist
