@@ -14,7 +14,7 @@ from saosuite import saostatusmsgs
 from saosuite import saoconfigmanager
 from saosuite import saomd5
 
-GLOBAL_version = "4.0.1"
+GLOBAL_version = "4.0.2dev"
 
 class MediaPost():
     def __init__(self, boardcode, opno, keyword, no, tim, ext, md564):
@@ -79,7 +79,6 @@ class Scraper():
     }
     def __init__(self, configVersion, forcePlebs = False, numberOfDownloadThreads = 1):
         self.lock = threading.Lock()
-        self.pm = saostatusmsgs.progressmsg()
         self.cm = saoconfigmanager.configmanager(filename = "scraperconfig.json", default = {"versioncreated": configVersion, "downloaded": {}})
         self.cm.tpt_manageDirectories = True
         self.cm.tpt_manageDirectoriesDeleteEmptyOnUpdate = True
@@ -242,26 +241,26 @@ class Scraper():
         self.cm.ffm_makedirs("{}/thumbs".format(threadDownloadFolderPath))
 
         #Scrape files
-        self.pm.progressmsg(msg = "Scraping /{}/:{}:{} ".format(boardcode, str(threadopno), keyword).ljust(padding), of = len(mediaPostsList))
+        pm = saostatusmsgs.ProgressMessage(message = "Scraping /{}/:{}:{} ".format(boardcode, str(threadopno), keyword).ljust(padding), of = len(mediaPostsList))
         anyDownloadErrors = False
 
         def DownloadMediaPost_thread():
-            nonlocal anyDownloadErrors, scrapednos
+            nonlocal anyDownloadErrors, scrapednos, pm
             while True:
                 with self.lock:
                     try:
                         post = mediaPostsList.pop(0)
                         if post.no in scrapednos:
-                            self.pm.tick()
+                            pm.tick()
                             continue
                     except IndexError:
                         return
                 for modus in sitesToCheck_mediaFiles:
-                    result = self.DownloadMediaPost(threadDownloadFolderPath, post, modus)
+                    result = self.DownloadMediaPost(threadDownloadFolderPath, post, modus, pm)
                     with self.lock:
                         if result == "success":
                             scrapednos.append(post.no)
-                            self.pm.tick()
+                            pm.tick()
                             break
                         elif result == "keep":
                             anyDownloadErrors = True
@@ -274,7 +273,7 @@ class Scraper():
             t.start()
         for t in download_threads:
             t.join()
-        self.pm.finish()
+        pm.finish()
 
         self.cm.ffm_rmIfEmptyTree("{}/thumbs".format(threadDownloadFolderPath))
         self.cm.ffm_rmIfEmptyTree(threadDownloadFolderPath)
@@ -349,10 +348,10 @@ class Scraper():
                     gmpl_error("error_loading")
                     return ["keep"]
 
-    def DownloadMediaPost(self, threadDownloadFolderPath, post, modus):
+    def DownloadMediaPost(self, threadDownloadFolderPath, post, modus, pm):
         def sf_error(code):
             with self.lock:
-                self.pm.progressmsg(msg = self.constantStrings[modus]["DownloadMediaPost_Errors"][code].format(post.boardcode, post.opno, post.keyword, str(post.no)))
+                pm.printMessage(self.constantStrings[modus]["DownloadMediaPost_Errors"][code].format(post.boardcode, post.opno, post.keyword, str(post.no)))
 
         try:
             if modus == "4plebsthumbs":
