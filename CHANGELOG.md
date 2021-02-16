@@ -1,5 +1,8 @@
 # Changelog
 
+## v4.1.0
+- Add `-f` flag for control over filenames of downloads (see README for more info on filename formatting)
+
 ## v4.0.1
 - `-p` flag no longer affects non-plebs boards
 

@@ -1,5 +1,4 @@
 from time import time
-import shutil
 import json
 import os
 
@@ -17,8 +16,6 @@ class configmanager():
         Autosaving is enabled by default"""
         self.filename = filename
         # tpt_ settings
-        self.tpt_manageDirectories = False
-        self.tpt_manageDirectoriesDeleteEmptyOnUpdate = False
         self.tpt_noPromotingNewBlacklistedOrDone = True
         try:
             with open(self.filename) as config_jsonfile:
@@ -130,30 +127,6 @@ class configmanager():
             pass
         return return_value
 
-    # File/Folder Manager
-    """Some scripts for moving files and folders around, useful to keep config manager paths in sync with file system paths"""
-    def ffm_makedirs(self, path):
-        """Does os.makedirs($path) with exist_ok=True"""
-        os.makedirs(path, exist_ok=True)
-
-    def ffm_tryMove(self, pathFrom, pathTo):
-        """Tries to move the folder or file at $pathFrom to $pathTo
-        Returns True if successful else False"""
-        try:
-            shutil.move(pathFrom, pathTo)
-            return True
-        except:
-            return False
-
-    def ffm_rmIfEmptyTree(self, path, ignore=["desktop.ini"]):
-        """If the directory at $path is an empty tree* (a tree of directories containing no files) then remove it. *ignoring files with their name in the list $ignore
-        Returns True if a tree is removed else False"""
-        if not [file for _,_,files in os.walk(path) for file in files if not file in ignore]:
-            shutil.rmtree(path,ignore_errors=True)
-            return True
-        else:
-            return False
-
     # Tiered Progress Tracker
     """For storing data in different 'tiers', promoting and demoting as desired, also allows blacklisting and whitelisting of entries, and a 'done' list.
     Particularly useful for keeping track of 'tasks': progress / work done on each task, prioritising / ordering tasks by importance, blacklisting and whitelisting task ids + task keywords, and keeping a record of completed task ids
@@ -171,10 +144,7 @@ class configmanager():
         """Touches the tpt at $path
         If no entry exists at $path then the default tpt is made there
         Does not override the entry at $path even if it is not a tpt
-        Default tiers can be specified here
-        If self.tpt_manageDirectories == True then self.ffm_makedirs will make directories to $path in the cwd"""
-        if self.tpt_manageDirectories:
-            self.ffm_makedirs(path)
+        Default tiers can be specified here"""
         return self.valueTouch(path,default={"keywords_wl":[], "idnos_bl":[], "idnos_done":[], "tiers":{tier:[] for tier in defaultTiers}})
 
     def tpt_getkeywords_wl(self, path):
@@ -444,8 +414,7 @@ class configmanager():
     def tpt_updateTaskByIdno(self, path, idno, entries):
         """Touches the tpt at $path
         If a task with idno=$idno exists in the tpt then its entries are merged with the list $entries
-        Returns a list of the new entries added if this update happens, else returns None if no task with idno=$idno exists
-        If self.tpt_manageDirectoriesDeleteEmptyOnUpdate == True and if '$path/$idno keyword' is an empty tree of folders then it is removed"""
+        Returns a list of the new entries added if this update happens, else returns None if no task with idno=$idno exists"""
         tpt_system = self.tpt_touch(path)
         tpt_system_tiers = tpt_system["tiers"]
 
@@ -457,8 +426,6 @@ class configmanager():
                         if not entry in task[2]:
                             task[2].append(entry)
                             return_list.append(entry)
-                    if self.tpt_manageDirectories and self.tpt_manageDirectoriesDeleteEmptyOnUpdate:
-                        self.ffm_rmIfEmptyTree("{}/{} {}".format(path,idno,task[1]))
                     return return_list
         return None
 
@@ -536,10 +503,7 @@ class configmanager():
 
     def __tpt_modifyTaskKeyword(self, path, task, keyword, depro):
         """Internal code for modifying task's keyword upon promoting or demoting
-        $depro either 'PRO' or 'DE'
-        Will rename / create directories accordingly if self.tpt_manageDirectories == True"""
-        if self.tpt_manageDirectories:
-            keyword_old = task[:][1]
+        $depro either 'PRO' or 'DE'"""
         if isinstance(keyword,str):
             task[1] = self.tpt_sanitiseKeyword(keyword)
         elif depro == "PRO":
@@ -552,11 +516,6 @@ class configmanager():
                 if task[1].startswith("_PROMOTED_"):
                     task[1] = task[1][10:]
                 task[1] = "_DEMOTED_" + task[1]
-        if self.tpt_manageDirectories:
-            # Tries to rename directories at $path with directory name of form '$idno $keyword_old' to '$idno $keyword_new'
-            # Makes new directory anyways if can't move old
-            if keyword_old == "_NEW_" or not self.ffm_tryMove("{}/{} {}".format(path,task[0],keyword_old),"{}/{} {}".format(path,task[0],task[1])):
-                self.ffm_makedirs("{}/{} {}".format(path,task[0],task[1]))
         return task
 
 ################################################################################
