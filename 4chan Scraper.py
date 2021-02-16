@@ -15,7 +15,7 @@ from saosuite import saostatusmsgs
 from saosuite import saoconfigmanager
 from saosuite import saomd5
 
-GLOBAL_version = "4.0.2dev"
+GLOBAL_version = "4.1.0dev"
 
 class MediaPost():
     def __init__(self, boardcode, opno, keyword, no, tim, ext, md5Hex):
@@ -393,38 +393,38 @@ if __name__ == "__main__":
         4plebs is also sourced.
         The file 'scraperconfig.json' stores the program's config in the program's directory.
         Scraped files are saved in nested directories in the same directory as the program.""")
-    parser.add_argument("--logo", "-l",
+    parser.add_argument("-l", "--logo",
         action = "store_true",
         help = "Print SAO logo and program version")
-    parser.add_argument("--update", "-u",
+    parser.add_argument("-u", "--update",
         action = "store_true",
         help = "Update the lists of threads to scraped, but do not scrape them now. Also prunes threads of no further interest, ie those of keywords no longer being scraped for.")
-    parser.add_argument("--scrape", "-s",
+    parser.add_argument("-s", "--scrape",
         action = "store_true",
         help = "Calls --update and then scrapes")
-    parser.add_argument("--plebs", "-p",
+    parser.add_argument("-p", "--plebs",
         action = "store_true",
         help = "Force the use of 4plebs as the source of thread JSON and attachments for pleb boards. Affects flags --oneoff and --scrape")
-    parser.add_argument("--view", "-v",
+    parser.add_argument("-v", "--view",
         action = "store_true",
         help = "View the current requests, keywords, and blacklist")
-    parser.add_argument("--filename", "-f",
+    parser.add_argument("-f", "--filename",
         action = "store",
         help = "Specify the format of download filenames: default is '{}'. A full list of formatting parameters can be found in the README.md".format(os.path.normpath("./downloaded/%(boardcode)s/%(opno)s %(keyword)s/%(no)s%(ext)s".replace("%", "%%"))),
         default = "{}".format(os.path.normpath("./downloaded/%(boardcode)s/%(opno)s %(keyword)s/%(no)s%(ext)s")))
-    parser.add_argument("--oneoff", "-o",
+    parser.add_argument("-o", "--oneoff",
         action = "store",
         help = "Perform a oneoff scrape of a specified thread of the form 'boardcode:opno:tag'. This ignores the config, whether the thread has been scraped before or not, or is blacklisted etc. 'tag' is optional, by default it is 'oneoff'")
-    parser.add_argument("--request", "-r",
+    parser.add_argument("-r", "--request",
         action = "store",
         help = "Toggle the scraping of a specially requested thread in the form 'boardcode:opno:tag'. This overrides the blacklist. 'tag' is optional, by default it is 'request'")
-    parser.add_argument("--add", "-a",
+    parser.add_argument("-a", "--add",
         action = "store",
         help = "Add keywords to scrape for in the form 'boardcode:word1,word2,...,wordn'")
-    parser.add_argument("--delete", "-d",
+    parser.add_argument("-d", "--delete",
         action = "store",
         help = "Delete keywords to no longer search for in the form 'boardcode:word1,word2,...,wordn'")
-    parser.add_argument("--blacklist", "-b",
+    parser.add_argument("-b", "--blacklist",
         action = "store",
         help = "Toggle the blacklisting of a thread to not be scraped in the form 'boardcode:opno'")
     args = parser.parse_args()
