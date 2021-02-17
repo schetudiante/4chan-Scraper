@@ -15,10 +15,10 @@ from saosuite import saostatusmsgs
 from saosuite import saoconfigmanager
 from saosuite import saomd5
 
-GLOBAL_version = "4.1.0dev"
+GLOBAL_version = "4.1.0"
 
 class MediaPost():
-    def __init__(self, boardcode, opno, keyword, no, tim, ext, md5Hex):
+    def __init__(self, boardcode, opno, keyword, no, tim, ext, md5Hex, originalFilename, posterName, modus):
         self.boardcode = boardcode
         self.opno = opno
         self.keyword = keyword
@@ -26,10 +26,49 @@ class MediaPost():
         self.tim = tim
         self.ext = ext
         self.md5Hex = md5Hex
+        self.originalFilename = originalFilename
+        self.posterName = posterName
+        self.modus = modus
+
+    @classmethod
+    def blank(cls):
+        # for validating filename parameters with MediaPost.__dict__.keys()
+        return cls(None, None, None, None, None, None, None, None, None, None)
+
+    @classmethod
+    def from4chan(cls, boardcode, opno, keyword, threadJSONpost):
+        return cls(
+            boardcode,
+            opno,
+            keyword,
+            threadJSONpost["no"],
+            threadJSONpost["tim"],
+            threadJSONpost["ext"],
+            saomd5.base64ToHex(threadJSONpost["md5"]),
+            threadJSONpost["filename"],
+            threadJSONpost["name"],
+            "4chan"
+        )
+
+    @classmethod
+    def from4plebs(cls, boardcode, opno, keyword, threadJSONpost):
+        return cls(
+            boardcode,
+            opno,
+            keyword,
+            int(threadJSONpost["num"]),
+            int(os.path.splitext(threadJSONpost["media"]["media"])[0]),
+            os.path.splitext(threadJSONpost["media"]["media"])[1],
+            saomd5.base64ToHex(threadJSONpost["media"]["media_hash"]),
+            os.path.splitext(threadJSONpost["media"]["media_filename"])[0],
+            threadJSONpost["name"],
+            "4plebs"
+        )
 
 class Scraper():
     boxesToCheckFor = {"4chan":["name","sub","com","filename"],"4plebs":["username","subject","text","filename"]}
     plebBoards = ['adv','f','hr','o','pol','s4s','sp','tg','trv','tv','x']
+    validFilenameParametersFinderRegex = r"%\((?P<field>{})\)s".format("|".join(MediaPost.blank().__dict__.keys()))
     constantStrings = {
         "4chan": {
             "URL": {
@@ -53,6 +92,7 @@ class Scraper():
         "4plebs": {
             "URL": {
                 "threadJSON": "http://archive.4plebs.org/_/api/chan/thread/?board={}&num={}",
+                "threadJSON_header": "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7",
                 "image": "https://i.4pcdn.org/{}/{}{}"
             },
             "GetMediaPostsList_Errors": {
@@ -79,12 +119,23 @@ class Scraper():
         }
     }
     def __init__(self, configVersion, filenameFormat, forcePlebs = False, numberOfDownloadThreads = 1):
-        self.lock = threading.Lock()
-        self.cm = saoconfigmanager.configmanager(filename = "scraperconfig.json", default = {"versioncreated": configVersion, "downloaded": {}})
-
+        self.configVersion = configVersion
         self.filenameFormat = os.path.normpath(filenameFormat)
         self.forcePlebs = forcePlebs
         self.numberOfDownloadThreads = numberOfDownloadThreads
+
+        self.validateFilenameParameters()
+
+        self.lock = threading.Lock()
+        self.cm = saoconfigmanager.configmanager(filename = "scraperconfig.json", default = {"versioncreated": self.configVersion, "downloaded": {}})
+
+    def validateFilenameParameters(self):
+        validParameters = list(MediaPost.blank().__dict__.keys())
+        reMatches = re.finditer(r"%\(\w*\)s", self.filenameFormat) # find all %(X)s, even invalid X
+        for reMatch in reMatches:
+            if not (parameter := reMatch.group())[2:-2] in validParameters:
+                print("Error: unknown filename parameter {}".format(parameter))
+                raise SystemExit
 
     def ViewRequests(self):
         someRequests = False
@@ -283,7 +334,7 @@ class Scraper():
                 threadJSON_url = self.constantStrings[modus]["URL"]["threadJSON"].format(boardcode,str(threadopno))
                 threadJSON_file = urllib.request.urlopen(threadJSON_url)
                 threadJSON = json.load(threadJSON_file)
-                mediaPostsList = [MediaPost(boardcode, threadopno, keyword, post["no"], post["tim"], post["ext"], saomd5.base64ToHex(post["md5"])) for post in threadJSON["posts"] if "tim" in post]
+                mediaPostsList = [MediaPost.from4chan(boardcode, threadopno, keyword, post) for post in threadJSON["posts"] if "tim" in post]
                 return ["now_scrape", mediaPostsList, "archived" in threadJSON["posts"][0]]
             except Exception as e:
                 if hasattr(e,"code") and e.code == 404: # pylint: disable=E1101
@@ -300,7 +351,7 @@ class Scraper():
         elif modus == "4plebs":
             try:
                 threadJSON_url = self.constantStrings[modus]["URL"]["threadJSON"].format(boardcode,str(threadopno))
-                threadJSON_file = urllib.request.urlopen(urllib.request.Request(threadJSON_url,None,{"User-Agent": "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7"}))
+                threadJSON_file = urllib.request.urlopen(urllib.request.Request(threadJSON_url,None,{"User-Agent": self.constantStrings[modus]["URL"]["threadJSON_header"]}))
                 threadJSON = json.load(threadJSON_file)
                 if "error" in threadJSON:
                     if threadJSON["error"] == "Thread not found.":
@@ -309,27 +360,11 @@ class Scraper():
                         raise Exception
                 mediaPostsList = []
                 if "op" in threadJSON[str(threadopno)] and threadJSON[str(threadopno)]["op"]["media"] != None:
-                    mediaPostsList.append(MediaPost(
-                        boardcode,
-                        threadopno,
-                        keyword,
-                        threadopno,
-                        os.path.splitext(threadJSON[str(threadopno)]["op"]["media"]["media"])[0],
-                        os.path.splitext(threadJSON[str(threadopno)]["op"]["media"]["media"])[1],
-                        saomd5.base64ToHex(threadJSON[str(threadopno)]["op"]["media"]["media_hash"])
-                    ))
+                    mediaPostsList.append(MediaPost.from4plebs(boardcode, threadopno, keyword, threadJSON[str(threadopno)]["op"]))
                 if "posts" in threadJSON[str(threadopno)]:
                     for postvalue in threadJSON[str(threadopno)]["posts"].values():
                         if postvalue["media"] != None:
-                            mediaPostsList.append(MediaPost(
-                                boardcode,
-                                threadopno,
-                                keyword,
-                                int(postvalue["num"]),
-                                os.path.splitext(postvalue["media"]["media"])[0],
-                                os.path.splitext(postvalue["media"]["media"])[1],
-                                saomd5.base64ToHex(postvalue["media"]["media_hash"])
-                            ))
+                            mediaPostsList.append(MediaPost.from4plebs(boardcode, threadopno, keyword, postvalue))
                 return ["now_scrape", mediaPostsList, False] # 4plebs JSONs do not tell us if a thread is archived; always assume not if forceplebs or falling back to 4plebs from 4chan
             except Exception as e:
                 if hasattr(e, "code") and e.code in [404, "404"]: # pylint: disable=E1101
@@ -345,8 +380,7 @@ class Scraper():
             with self.lock:
                 pm.printMessage(self.constantStrings[modus]["DownloadMediaPost_Errors"][code].format(post.boardcode, post.opno, post.keyword, str(post.no)))
 
-        regExpression = r"%\((?P<field>{})\)s".format("|".join(post.__dict__.keys())) # TODO allow more keys eg modus
-        downloadPath = re.sub(regExpression, lambda match: str(post.__dict__[match.group("field")]), self.filenameFormat)
+        downloadPath = re.sub(self.validFilenameParametersFinderRegex, lambda match: str(post.__dict__[match.group("field")]), self.filenameFormat)
 
         if (foldersPath := os.path.split(downloadPath)[0]):
             os.makedirs(foldersPath, exist_ok = True)
